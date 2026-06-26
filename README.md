@@ -1,4 +1,12 @@
-# LearnX-Delftse
+<p align="center">
+  <img src="trainer/favicon.svg" width="96" height="96" alt="LearnX-Delftse logo">
+</p>
+
+<h1 align="center">LearnX-Delftse</h1>
+
+https://github.com/user-attachments/assets/a9245661-52c4-4481-bca2-8e88a741b77f
+
+
 
 An interactive, audio-first Dutch trainer (Delft-method style: listen → repeat →
 fill-in → review) with spaced repetition. **This repo holds only the code and the
@@ -22,40 +30,6 @@ only in the browser's `localStorage`). Every lesson, audio file, and score is th
 pulled from the private repo via `GET /repos/<owner>/<state-repo>/contents/...` with
 `Authorization: Bearer <token>`. No token → nothing loads. The token *is* the login.
 
-## Data flow
-
-```mermaid
-graph TD
-    classDef public fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b;
-    classDef private fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#e65100;
-    classDef device fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#1b5a20;
-    classDef process fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c;
-
-    subgraph User_Device [" YOUR DEVICE "]
-        Shell["Static Trainer Shell<br/>(delftse.html)"]:::device
-        Token["localStorage<br/>(read-only token)"]:::device
-    end
-
-    subgraph GitHub_Public [" GITHUB · PUBLIC "]
-        Pages["GitHub Pages<br/>(code + UI shell only)"]:::public
-    end
-
-    subgraph GitHub_Private [" GITHUB · PRIVATE DATABASE "]
-        DB["Private repo<br/>• lesson content + audio<br/>• SRS schedule + scores"]:::private
-    end
-
-    subgraph Async_Loop [" PERSONALIZATION LOOP "]
-        Bot["Telegram bot<br/>(holds score taps ~24h)"]:::process
-        Action["GitHub Action · daily cron<br/>(scripts/sync.py)"]:::process
-    end
-
-    Pages -->|1. load shell| Shell
-    Token -->|2. provide token| Shell
-    Shell -->|3. fetch content + audio via API| DB
-    Shell -->|4. save lesson tap| Bot
-    Bot -->|5. read taps| Action
-    Action -->|6. recompute SRS + commit state| DB
-```
 
 **Read path** (1–3): the public shell authenticates with your token and streams the
 lessons/audio/scores from the private database.
