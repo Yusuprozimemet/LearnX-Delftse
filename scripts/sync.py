@@ -57,16 +57,13 @@ def main() -> None:
         if not words:
             continue
         applied += srs.record_chapter_recall(memory, chapter, marks, words)
-        wrong = [w.get("form", w.get("id", "?")) for w, m in zip(words, marks) if m == "0"]
-        results.append({"label": f"Lesson {chapter}", "right": marks.count("1"),
-                        "wrong": wrong, "skipped": marks.count("x")})
+        forms = [w.get("form", w.get("id", "?")) for w in words]
+        results.append(_categorize(f"Lesson {chapter}", forms, marks))
     for date_iso, marks in inbound["review"]:
         ids = (memory.get("last_review") or {}).get("ids", [])
         applied += srs.record_review(memory, date_iso, marks)
-        wrong = [memory["words"].get(wid, {}).get("form", wid)
-                 for wid, m in zip(ids, marks) if m == "0"]
-        results.append({"label": "Review session", "right": marks.count("1"),
-                        "wrong": wrong, "skipped": marks.count("x")})
+        forms = [memory["words"].get(wid, {}).get("form", wid) for wid in ids]
+        results.append(_categorize("Review session", forms, marks))
     if inbound["last_id"]:
         memory["tg_offset"] = inbound["last_id"]
     print(f"[sync] inbound: {len(inbound['recall'])} recall, {len(inbound['review'])} review "
@@ -89,20 +86,36 @@ def main() -> None:
         print("[sync] heartbeat sent to Telegram")
 
 
+def _categorize(label: str, forms: list[str], marks: str) -> dict:
+    """Split a marks string ('1' right / '0' wrong / 'b' blank / 'x' untrained) into
+    named buckets with the actual word forms, positional over `forms`."""
+    right, wrong, blank = [], [], []
+    for form, m in zip(forms, marks):
+        if m == "1":
+            right.append(form)
+        elif m == "0":
+            wrong.append(form)
+        elif m == "b":
+            blank.append(form)
+    return {"label": label, "right": right, "wrong": wrong, "blank": blank}
+
+
 def _summary(results: list[dict], due: int, tracked: int, streak: int, link: str) -> str:
-    """The English Telegram heartbeat: a per-test breakdown when results came in,
-    or a plain 'nothing new' note when the inbox was empty this run."""
+    """The English Telegram heartbeat: a per-test breakdown (correct / wrong / blank,
+    naming each wrong and blank word) when results came in, or a plain 'nothing new'
+    note when the inbox was empty this run."""
     lines = ["<b>📘 Delftse — daily sync</b>"]
     if results:
         for r in results:
-            answered = r["right"] + len(r["wrong"])
-            head = f"\n<b>{esc(r['label'])}</b>: {r['right']}/{answered} correct"
-            if r["skipped"]:
-                head += f" ({r['skipped']} skipped)"
+            answered = len(r["right"]) + len(r["wrong"])
+            head = (f"\n<b>{esc(r['label'])}</b>: {len(r['right'])}/{answered} correct"
+                    f" · {len(r['wrong'])} wrong · {len(r['blank'])} blank")
             lines.append(head)
             if r["wrong"]:
                 lines.append("❌ Wrong: " + ", ".join(esc(w) for w in r["wrong"]))
-            else:
+            if r["blank"]:
+                lines.append("⬜ Blank: " + ", ".join(esc(w) for w in r["blank"]))
+            if not r["wrong"] and not r["blank"]:
                 lines.append("✅ All correct!")
     else:
         lines.append("\nNo new test results since the last sync — "

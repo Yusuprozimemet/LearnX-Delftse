@@ -22,8 +22,8 @@ import config
 
 _GET = "https://api.telegram.org/bot{token}/getUpdates"
 _SEND = "https://api.telegram.org/bot{token}/sendMessage"
-_RECALL = re.compile(r"^/start\s+db_(\d{2})_([01x]+)$")
-_REVIEW = re.compile(r"^/start\s+dv_(\d{6})_([01x]+)$")
+_RECALL = re.compile(r"^/start\s+db_(\d{2})_([01xb]+)$")
+_REVIEW = re.compile(r"^/start\s+dv_(\d{6})_([01xb]+)$")
 
 
 def send(text: str) -> bool:

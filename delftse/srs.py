@@ -78,7 +78,7 @@ def record_chapter_recall(memory: dict, chapter: int, marks: str,
     wrong_ids: list[str] = []
     for w, mark in zip(words, marks, strict=False):
         wid = w.get("id")
-        if not wid or mark == "x":
+        if not wid or mark in ("x", "b"):       # untrained / left blank: don't penalize
             continue
         e = wdict.get(wid) or {"introduced": today, "reps": 0}
         e["form"] = w.get("form", wid)
@@ -119,7 +119,7 @@ def record_review(memory: dict, date_iso: str, marks: str,
     wrong_ids: list[str] = []
     for wid, mark in zip(last.get("ids", []), marks, strict=False):
         e = wdict.get(wid)
-        if e is None or mark == "x":
+        if e is None or mark in ("x", "b"):     # untrained / left blank: don't penalize
             continue
         if mark == "1":
             e["reps"] = int(e.get("reps", 1)) + 1

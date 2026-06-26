@@ -276,10 +276,10 @@
   function loadResults() {
     try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; }
   }
-  function saveResult(id, kind, right, wrong) {
+  function saveResult(id, kind, right, wrong, blank) {
     var all = loadResults();
     all[id] = all[id] || {};
-    all[id][kind] = { right: right, wrong: wrong };
+    all[id][kind] = { right: right, wrong: wrong, blank: blank || [] };
     localStorage.setItem(STORE, JSON.stringify(all));
     refreshStats();
   }
@@ -315,15 +315,19 @@
   var reportLesson = null, reportBox = null;
   function wordMarks(lesson) {
     var kinds = loadResults()[lesson.id] || {};
-    var rights = {}, wrongs = {};
+    var rights = {}, wrongs = {}, blanks = {};
     Object.keys(kinds).forEach(function (k) {
       (kinds[k].right || []).forEach(function (a) { rights[norm(a)] = true; });
       (kinds[k].wrong || []).forEach(function (a) { wrongs[norm(a)] = true; });
+      (kinds[k].blank || []).forEach(function (a) { blanks[norm(a)] = true; });
     });
+    // Right wins over wrong wins over blank: getting a word right in ANY exercise
+    // counts it correct even if another exercise left it blank or missed.
     return ((lesson.report || {}).words || []).map(function (w) {
       var f = norm(w.form || "");
-      if (wrongs[f]) return "0";
       if (rights[f]) return "1";
+      if (wrongs[f]) return "0";
+      if (blanks[f]) return "b";
       return "x";
     }).join("");
   }
@@ -510,11 +514,11 @@
       var r = checkInputs(inputs, answersByN);
       used = bumpAttempts(id, kind);
       result.textContent = r.right.length + "/" + totalBlanks + " goed";
-      saveResult(id, kind, r.right, r.wrong);
+      saveResult(id, kind, r.right, r.wrong, r.blank);
       inputs.forEach(function (i) { i.disabled = true; });
       score.disabled = true;
       info.textContent = "poging " + used + "/" + MAX_ATTEMPTS + " gebruikt";
-      if (used < MAX_ATTEMPTS && r.wrong.length) retake.style.display = "";
+      if (used < MAX_ATTEMPTS && (r.wrong.length || r.blank.length)) retake.style.display = "";
     });
     retake.addEventListener("click", function () {
       inputs.forEach(function (i) { i.disabled = false; i.value = ""; i.classList.remove("right", "wrong"); });
@@ -732,21 +736,23 @@
       next.style.display = "none";
       var result = el("span", "result", "");
       check.addEventListener("click", function () {
-        var right = [], wrong = [], got = 0;
+        var right = [], wrong = [], blank = [], got = 0;
         if (round === 1) firstMisses = [];
         rows.forEach(function (r) {
           var isWord = r.it.kind === "word";
-          var ok = dicteeOk(r.input.value, r.it.nl, isWord);
+          var typed = norm(r.input.value) !== "";
+          var ok = typed && dicteeOk(r.input.value, r.it.nl, isWord);
           r.input.disabled = true;
-          r.input.classList.add(ok ? "right" : "wrong");
+          r.input.classList.add(ok ? "right" : (typed ? "wrong" : "blank"));
           r.ans.textContent = ok ? "✓ " + r.it.nl : r.it.nl + (isWord ? " — " + r.it.en : "");
           if (ok) got++;
-          if (isWord) (ok ? right : wrong).push(r.it.id);
+          if (isWord) { if (!typed) blank.push(r.it.id); else (ok ? right : wrong).push(r.it.id); }
           if (!ok && round === 1) firstMisses.push(r.it.nl);
         });
         result.textContent = got + "/" + rows.length + " goed";
         check.disabled = true; next.style.display = "";
-        if (round === 2 && (right.length || wrong.length)) saveResult(lesson.id, "dicteren", right, wrong);
+        if (round === 2 && (right.length || wrong.length || blank.length))
+          saveResult(lesson.id, "dicteren", right, wrong, blank);
       });
       next.addEventListener("click", function () {
         if (round === 1) { words.length >= 2 ? combineren() : dictee(2); }
@@ -814,15 +820,20 @@
     return div;
   }
   function checkInputs(inputs, answersByN) {
-    var right = [], wrong = [];
+    var right = [], wrong = [], blank = [];
     inputs.forEach(function (input) {
       var want = answersByN[input.dataset.n] || "";
+      if (norm(input.value) === "") {            // left empty: blank, not wrong
+        input.classList.remove("right", "wrong");
+        blank.push(want);
+        return;
+      }
       var ok = norm(input.value) === norm(want);
       input.classList.toggle("right", ok);
       input.classList.toggle("wrong", !ok);
       if (ok) { input.disabled = true; right.push(want); } else { wrong.push(want); }
     });
-    return { right: right, wrong: wrong };
+    return { right: right, wrong: wrong, blank: blank };
   }
   function gatentekstView(lesson) {
     var wrap = el("div");
