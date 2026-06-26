@@ -337,7 +337,7 @@
     var rep = reportLesson.report || {};
     if (!rep.bot || !(rep.words || []).length) return;
     var marks = wordMarks(reportLesson);
-    if (!/[01]/.test(marks)) return;                 // nothing scored yet this chapter
+    if (!/[01b]/.test(marks)) return;                // nothing attempted yet this chapter
     var a = el("a", "score", "✅ Resultaten opslaan");
     a.href = "https://t.me/" + rep.bot + "?start=db_" +
              ("0" + reportLesson.chapter).slice(-2) + "_" + marks;
