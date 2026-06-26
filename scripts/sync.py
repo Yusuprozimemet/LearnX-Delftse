@@ -12,6 +12,7 @@ Needs the Telegram secrets in .env (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
 REVIEW_TOKEN_SECRET). Run:  python scripts/sync.py
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,7 +23,10 @@ import config  # noqa: E402
 from delftse import review as review_mod  # noqa: E402
 from delftse import srs, telegram  # noqa: E402
 
-TRAINER = DELFTSE / "trainer"
+# In CI the data is a separate checkout from the code — DELFTSE_STATE_DIR points there
+# (defaults to the repo root locally). srs.py reads the same var for the memory file.
+STATE_DIR = Path(os.environ.get("DELFTSE_STATE_DIR") or DELFTSE)
+TRAINER = STATE_DIR / "trainer"
 
 
 def _chapter_words(chapter: int) -> list[dict]:

@@ -15,12 +15,16 @@ Shape:
 import hashlib
 import hmac
 import json
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
 import config
 
-MEMORY_FILE = Path(__file__).resolve().parent.parent / "delftse_memory.json"
+# State (the SR memory + published files) lives next to the code locally, but in CI the
+# data is a separate checkout — DELFTSE_STATE_DIR points the sync there.
+STATE_DIR = Path(os.environ.get("DELFTSE_STATE_DIR") or Path(__file__).resolve().parent.parent)
+MEMORY_FILE = STATE_DIR / "delftse_memory.json"
 RECALL_LOG_KEEP = 200
 
 
