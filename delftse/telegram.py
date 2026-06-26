@@ -21,8 +21,29 @@ import requests
 import config
 
 _GET = "https://api.telegram.org/bot{token}/getUpdates"
+_SEND = "https://api.telegram.org/bot{token}/sendMessage"
 _RECALL = re.compile(r"^/start\s+db_(\d{2})_([01x]+)$")
 _REVIEW = re.compile(r"^/start\s+dv_(\d{6})_([01x]+)$")
+
+
+def send(text: str) -> bool:
+    """Push a short message to the owner chat (the sync runner's daily heartbeat).
+
+    Best-effort: returns False (never raises) if the keys are missing or Telegram
+    errors, so a failed notification can't fail the sync. HTML parse mode so links
+    render. Disables the link preview to keep the message compact."""
+    if not (config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID):
+        return False
+    try:
+        resp = requests.post(
+            _SEND.format(token=config.TELEGRAM_BOT_TOKEN),
+            json={"chat_id": config.TELEGRAM_CHAT_ID, "text": text,
+                  "parse_mode": "HTML", "disable_web_page_preview": True},
+            timeout=30)
+        resp.raise_for_status()
+        return True
+    except requests.RequestException:
+        return False
 
 
 def _parse_date(yymmdd: str) -> str | None:

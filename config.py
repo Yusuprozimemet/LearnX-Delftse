@@ -33,6 +33,10 @@ TELEGRAM_BOT_USERNAME = _b("TELEGRAM_BOT_USERNAME", "Prakly_notification_bot")
 TELEGRAM_CHAT_ID = _b("TELEGRAM_CHAT_ID")
 # HMAC secret naming the published review/progress files (review/<token>.json).
 REVIEW_TOKEN_SECRET = _b("REVIEW_TOKEN_SECRET", "delftse-dev-secret")
+# Public trainer page (GitHub Pages). The sync runner appends ?u=<token> and texts
+# this back after each run so the daily loop is visible. Override via env if you move it.
+TRAINER_URL = _b("TRAINER_URL",
+                 "https://yusuprozimemet.github.io/LearnX-Delftse/trainer/delftse.html")
 
 # --- Audio (edge-tts Dutch voices — no API key needed) ---------------------------
 DUTCH_VOICE_ALEX = "nl-NL-MaartenNeural"   # speaker A

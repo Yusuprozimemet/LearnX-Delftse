@@ -68,9 +68,17 @@ def main() -> None:
     _publish(TRAINER / "progress" / f"{token}.json", srs.build_progress(memory))
     srs.save_memory(memory)
 
-    print(f"[sync] {len(payload['items'])} word(s) due · {len(memory['words'])} tracked "
-          f"· streak {memory['streak']}")
+    due, tracked, streak = len(payload["items"]), len(memory["words"]), memory["streak"]
+    print(f"[sync] {due} word(s) due · {tracked} tracked · streak {streak}")
     print(f"[sync] your trainer link: delftse.html?u={token}")
+
+    # Daily heartbeat back to Telegram so the loop is visible — best-effort.
+    link = f"{config.TRAINER_URL}?u={token}"
+    due_line = f"🔁 {due} woord(en) te herhalen" if due else "✅ niets te herhalen vandaag"
+    if telegram.send(f"<b>Delftse</b> · dag {streak} 🔥\n{due_line}\n"
+                     f"📚 {tracked} woorden gevolgd · {applied} bijgewerkt\n"
+                     f'<a href="{link}">▶️ Open je trainer</a>'):
+        print("[sync] heartbeat sent to Telegram")
 
 
 if __name__ == "__main__":
