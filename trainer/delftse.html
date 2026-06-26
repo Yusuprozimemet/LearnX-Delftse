@@ -1,0 +1,1090 @@
+<!doctype html>
+<!-- LearnX-Delftse trainer — static, client-side only. A fork of LearnX-Radar's
+     dutch.html adapted from a DAILY lesson feed to a FIXED book (the Delftse
+     methode, book1). Differences from Radar:
+       * Source is index.json (the chapter list) + delftse-<n>.json per chapter,
+         produced offline by build/convert.py from book1/*.md — not a daily run.
+       * A CHAPTER PICKER replaces Radar's date/archive model: pick any of the 42
+         chapters, self-paced; each has its own delftse-<n>.mp3 (edge-tts, with the
+         same ms-timestamped A/B/C blocks Radar's audio pipeline emits).
+       * A new VRAGEN tab drives the chapter's spreken Q&A: read/hear the question,
+         answer aloud, then reveal the model answer (browser TTS, nl-NL).
+       * No backend: no Telegram report, no herhaling-server, no progress token.
+         Scores live in localStorage exactly as Radar's do.
+     LEREN / TEST / LESSEN keep Radar's proven player + exercise logic verbatim. -->
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delftse trainer — LearnX</title>
+<style>
+  :root {
+    --green:#5fbf38; --green-edge:#48992a; --green-soft:#e8f7e0;
+    --blue:#2bb3f0;  --blue-edge:#1f93c7;  --blue-soft:#e3f5fd;
+    --orange:#ff9d33; --orange-edge:#e07f17;
+    --red:#ff5757; --red-soft:#ffe9e9;
+    --ink:#3d4350; --grey:#8a909c; --border:#e6e8ec; --bg:#f7f8f5; --card:#fff;
+  }
+  * { box-sizing:border-box; }
+  body { font-family:"Nunito","Segoe UI",-apple-system,Roboto,sans-serif; background:var(--bg);
+         max-width:760px; margin:0 auto 4rem; padding:0 1rem; color:var(--ink); line-height:1.55; }
+  header.bar { display:flex; align-items:center; gap:.7rem; padding:1.1rem 0 .6rem; }
+  header.bar .owl { font-size:1.9rem; }
+  header.bar h1 { font-size:1.25rem; margin:0; font-weight:800; }
+  header.bar .meta { color:var(--grey); font-size:.85rem; font-weight:700;
+                     background:var(--card); border:2px solid var(--border);
+                     border-radius:999px; padding:.15rem .7rem; }
+  .chapsel { margin-left:auto; }
+  .chapsel select { font:inherit; font-weight:800; color:var(--ink); background:var(--card);
+                    border:2px solid var(--border); border-bottom-width:4px; border-radius:14px;
+                    padding:.35rem .6rem; cursor:pointer; max-width:13rem; }
+  .tabs { display:flex; gap:.5rem; margin:.6rem 0 1rem; flex-wrap:wrap; }
+  .tabs button { flex:1; min-width:5rem; background:var(--card); color:var(--grey); font:inherit;
+                 font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+                 font-size:.82rem; padding:.55rem; cursor:pointer;
+                 border:2px solid var(--border); border-bottom-width:4px; border-radius:14px; }
+  .tabs button:active { transform:translateY(2px); border-bottom-width:2px; }
+  .tabs button.active { background:var(--green-soft); color:var(--green-edge);
+                        border-color:var(--green); }
+  .pills { display:flex; gap:.5rem; flex-wrap:wrap; margin:.2rem 0 1rem; }
+  .pills button { min-width:2.7rem; height:2.7rem; padding:0 1rem; border-radius:999px;
+                  font:inherit; font-weight:800; color:var(--grey); background:var(--card);
+                  cursor:pointer; white-space:nowrap;
+                  border:2px solid var(--border); border-bottom-width:4px; }
+  .pills button:active { transform:translateY(2px); border-bottom-width:2px; }
+  .pills button.active { background:var(--green); border-color:var(--green-edge); color:#fff; }
+  .hint { background:var(--card); border:2px solid var(--border); border-radius:16px;
+          padding:.7rem 1rem; color:var(--ink); font-weight:700; font-size:.92rem; }
+  .player { background:var(--card); border:2px solid var(--border); border-radius:20px;
+            padding:1.3rem 1.2rem 1rem; display:flex; flex-direction:column;
+            align-items:center; gap:1rem; margin:1.1rem 0; }
+  .player .buttons { display:flex; gap:.6rem; }
+  .player .buttons button { width:3.4rem; height:3.4rem; font-size:1.35rem; color:#fff;
+            background:var(--blue); border:0; border-bottom:4px solid var(--blue-edge);
+            border-radius:18px; cursor:pointer; }
+  .player .buttons button:active { transform:translateY(2px); border-bottom-width:2px; }
+  .player .buttons button:nth-child(2) { background:var(--green);
+            border-bottom-color:var(--green-edge); width:4.2rem; }
+  .player .buttons button.toggled { background:var(--orange);
+            border-bottom-color:var(--orange-edge); }
+  .player input[type=range] { width:100%; accent-color:var(--green); }
+  .line { display:flex; align-items:center; gap:.7rem; background:var(--card);
+          border:2px solid var(--border); border-radius:14px; padding:.5rem .7rem;
+          margin:.45rem 0; }
+  .line button.play, .les-row button.play { width:2.4rem; height:2.4rem; flex:none;
+          font-size:1rem; color:#fff;
+          background:var(--blue); border:0; border-bottom:4px solid var(--blue-edge);
+          border-radius:12px; cursor:pointer; }
+  .line button.play:active, .les-row button.play:active { transform:translateY(2px);
+          border-bottom-width:2px; }
+  .line button.play:disabled { background:#cfd4dc; border-bottom-color:#b9bfc9;
+          cursor:not-allowed; }
+  .line .nl { font-weight:800; }
+  .line .en { color:var(--grey); font-style:italic; font-size:.92rem; }
+  .line .en.veiled { background:var(--blue-soft); color:var(--blue-soft);
+          border-radius:8px; cursor:pointer; padding:0 .3rem; }
+  .line .en.veiled:hover { background:#d2eefb; color:#d2eefb; }
+  .line.now { border-color:var(--green); background:var(--green-soft); }
+  .transcript .line { border-style:dashed; }
+  .peek-box { min-height:1.9rem; font-weight:800; text-align:center; }
+  .cloze-line { background:var(--card); border:2px solid var(--border); border-radius:14px;
+                padding:.55rem .8rem; margin:.45rem 0; }
+  .cloze-line input { font:inherit; font-weight:700; width:8.5rem; padding:.15rem .5rem;
+                      border:2px solid var(--border); border-radius:10px; background:#fff; }
+  .cloze-line input:focus { outline:none; border-color:var(--blue); }
+  .cloze-line input.right { border-color:var(--green); background:var(--green-soft);
+                            color:var(--green-edge); }
+  .cloze-line input.wrong { border-color:var(--red); background:var(--red-soft);
+                            color:var(--red); }
+  button.score { background:var(--green); color:#fff; border:0;
+                 border-bottom:4px solid var(--green-edge); border-radius:14px;
+                 padding:.6rem 1.6rem; font:inherit; font-weight:800;
+                 text-transform:uppercase; letter-spacing:.05em; cursor:pointer; }
+  button.score:active:not(:disabled) { transform:translateY(2px); border-bottom-width:2px; }
+  button.score:disabled { background:#cfd4dc; border-bottom-color:#b9bfc9; cursor:not-allowed; }
+  button.score.retake { background:var(--blue); border-bottom-color:var(--blue-edge);
+                        margin-left:.6rem; }
+  .attempts { color:var(--grey); font-weight:800; font-size:.85rem; margin-left:.8rem; }
+  .result { color:var(--green-edge); font-weight:800; margin-left:.8rem; }
+  .stats { color:var(--grey); font-weight:700; margin-top:1rem; }
+  .stats strong { color:var(--ink); }
+  .muted { color:var(--grey); }
+  a.score { display:inline-block; background:var(--green); color:#fff; text-decoration:none;
+            border-bottom:4px solid var(--green-edge); border-radius:14px;
+            padding:.6rem 1.6rem; font-weight:800; font-size:.9rem;
+            text-transform:uppercase; letter-spacing:.05em; }
+  a.score:active { transform:translateY(2px); border-bottom-width:2px; }
+  .report-note { color:var(--grey); font-weight:700; font-size:.85rem; margin-left:.7rem; }
+  .synced { color:var(--grey); font-weight:700; font-size:.85rem; margin:.2rem 0 .6rem; }
+  .synced strong { color:var(--ink); }
+  .lt-row { display:flex; align-items:center; flex-wrap:wrap; gap:.4rem;
+            background:var(--card); border:2px solid var(--border); border-radius:14px;
+            padding:.55rem .7rem; margin:.45rem 0; }
+  .lt-row .speaker { color:var(--grey); font-weight:800; font-size:.85rem; }
+  .lt-row button.play { width:2.4rem; height:2.4rem; flex:none; font-size:1rem; color:#fff;
+          background:var(--blue); border:0; border-bottom:4px solid var(--blue-edge);
+          border-radius:12px; cursor:pointer; }
+  .lt-row button.play:active { transform:translateY(2px); border-bottom-width:2px; }
+  .lt-row button.play:disabled { background:#cfd4dc; border-bottom-color:#b9bfc9;
+          cursor:not-allowed; }
+  .lt-row .cloze-line { border:0; padding:0; margin:0; background:none; }
+  .les-row { display:flex; align-items:center; gap:.6rem; background:var(--card);
+             border:2px solid var(--border); border-radius:14px; padding:.6rem .9rem;
+             margin:.45rem 0; }
+  .les-row .les { color:var(--blue); font-weight:800; flex:none;
+                  min-width:4.4rem; white-space:nowrap; }
+  .les-row .title { font-weight:700; color:var(--grey); flex:1 1 auto; min-width:0;
+                    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .les-row .meta { margin-left:auto; flex:none; display:flex; align-items:center; gap:.5rem; }
+  .les-row .meta .attempts { margin-left:0; }
+  .les-row .pct { color:var(--green-edge); font-weight:800; }
+  .les-row .check { background:var(--green); color:#fff; border-radius:50%; flex:none;
+                    width:1.5rem; height:1.5rem; display:flex; align-items:center;
+                    justify-content:center; font-size:.8rem; }
+  .les-row.open { border-color:var(--green); background:var(--green-soft); }
+  .subhint { color:var(--grey); font-weight:800; font-size:.85rem; margin:.4rem 0; }
+  .dictee .line input { font:inherit; font-weight:700; width:9rem; padding:.2rem .55rem;
+                        border:2px solid var(--border); border-radius:10px; background:#fff; }
+  .dictee .line input:focus { outline:none; border-color:var(--blue); }
+  .dictee .line input.right { border-color:var(--green); background:var(--green-soft);
+                              color:var(--green-edge); }
+  .dictee .line input.wrong { border-color:var(--red); background:var(--red-soft); color:var(--red); }
+  .match-grid { display:flex; gap:.7rem; margin:.6rem 0; }
+  .match-col { flex:1; display:flex; flex-direction:column; gap:.5rem; }
+  .chip { font:inherit; font-weight:800; text-align:left; cursor:pointer; color:var(--ink);
+          background:var(--card); border:2px solid var(--border); border-bottom-width:4px;
+          border-radius:14px; padding:.6rem .8rem; }
+  .chip:active { transform:translateY(2px); border-bottom-width:2px; }
+  .chip.sel { border-color:var(--blue); background:var(--blue-soft); }
+  .chip.miss { border-color:var(--red); background:var(--red-soft); }
+  .chip.done { border-color:var(--green); background:var(--green-soft);
+               color:var(--green-edge); cursor:default; }
+  /* VRAGEN: a spreken card — question, answer aloud, then reveal the model answer */
+  .vraag { background:var(--card); border:2px solid var(--border); border-radius:16px;
+           padding:.8rem 1rem; margin:.55rem 0; }
+  .vraag .q { font-weight:800; }
+  .vraag .a { margin-top:.5rem; color:var(--green-edge); font-weight:700; display:none; }
+  .vraag.open .a { display:block; }
+  .vraag .row { display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
+  .vraag button { font:inherit; font-weight:800; cursor:pointer; border-radius:12px;
+                  border:2px solid var(--border); border-bottom-width:4px; background:var(--card);
+                  color:var(--ink); padding:.35rem .8rem; }
+  .vraag button:active { transform:translateY(2px); border-bottom-width:2px; }
+  .vraag button.speak { color:#fff; background:var(--blue); border:0; border-bottom:4px solid var(--blue-edge); }
+</style></head><body>
+<header class="bar">
+  <span class="owl">📖</span>
+  <h1>Delftse trainer</h1><span class="meta" id="meta">laden…</span>
+  <span class="chapsel"><select id="chapsel" style="display:none"></select></span>
+</header>
+<div class="tabs" id="tabs" style="display:none">
+  <button data-tab="leren" class="active">🎧 leren</button>
+  <button data-tab="test">✍️ test</button>
+  <button data-tab="vragen">💬 vragen</button>
+  <button data-tab="lessen">🏆 lessen</button>
+  <button data-tab="herhaling" id="tab-herhaling" style="display:none">🔁 herhaling</button>
+</div>
+<div id="app"><p class="muted" style="margin-top:1rem">Loading chapter…</p></div>
+
+<script>
+(function () {
+  "use strict";
+  var app = document.getElementById("app");
+  var audio = new Audio();
+  audio.preload = "metadata";
+  var stopAt = null, onTick = null, onStop = null;
+
+  // --- Path 2: the lessons live in a PRIVATE repo and are fetched via the GitHub API
+  // with a read-only fine-grained token — that token is the "login". It's stored only
+  // in this device's localStorage; without it, nothing loads. -----------------------
+  var GH = { owner: "Yusuprozimemet", repo: "LearnX-Delftse-state", path: "trainer/",
+             key: "delftse-gh-token" };
+  GH.token = localStorage.getItem(GH.key) || "";
+  function ghFetch(p, accept) {
+    var url = "https://api.github.com/repos/" + GH.owner + "/" + GH.repo +
+              "/contents/" + GH.path + p + "?ref=main&t=" + Date.now();
+    return fetch(url, { cache: "no-store",
+        headers: { "Accept": accept, "Authorization": "Bearer " + GH.token } })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 403) { var e = new Error("auth"); e.auth = true; throw e; }
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r;
+      });
+  }
+  function ghJSON(p) { return ghFetch(p, "application/vnd.github.raw").then(function (r) { return r.json(); }); }
+  function ghBlob(p) { return ghFetch(p, "application/vnd.github.raw").then(function (r) { return r.blob(); }); }
+
+  // 40ms watchdog (timeupdate is too coarse — would overshoot a sentence's end).
+  setInterval(function () {
+    if (audio.paused) return;
+    var ms = audio.currentTime * 1000;
+    if (onTick) onTick(ms);
+    if (stopAt !== null && ms >= stopAt - 20) { audio.pause(); stopAt = null; if (onStop) onStop(); }
+  }, 40);
+
+  // Seek-then-play, safe before metadata has loaded; +10ms start nudge.
+  function playRange(startMs, endMs) {
+    audio.pause();
+    stopAt = endMs;
+    var go = function () { audio.currentTime = (startMs + 10) / 1000; audio.play(); };
+    if (audio.readyState >= 1) { go(); return; }
+    audio.addEventListener("loadedmetadata", go, { once: true });
+    audio.load();
+  }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function norm(s) { return s.trim().toLowerCase().replace(/\s+/g, " "); }
+
+  // Browser TTS for the VRAGEN tab (the Q&A isn't in the lesson MP3). Guarded —
+  // a device with no Dutch voice just falls back to whatever it has.
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    audio.pause();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = "nl-NL"; u.rate = 0.9;
+    var v = (window.speechSynthesis.getVoices() || []).filter(function (x) {
+      return /nl/i.test(x.lang); })[0];
+    if (v) u.voice = v;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }
+
+  // --- localStorage: per-chapter results -----------------------------------------
+  var STORE = "learnx-delftse-results";
+  function loadResults() {
+    try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; }
+  }
+  function saveResult(id, kind, right, wrong) {
+    var all = loadResults();
+    all[id] = all[id] || {};
+    all[id][kind] = { right: right, wrong: wrong };
+    localStorage.setItem(STORE, JSON.stringify(all));
+    refreshStats();
+  }
+  function recallStats() {
+    var right = 0, total = 0, all = loadResults();
+    Object.keys(all).forEach(function (d) {
+      Object.keys(all[d]).forEach(function (k) {
+        right += (all[d][k].right || []).length;
+        total += (all[d][k].right || []).length + (all[d][k].wrong || []).length;
+      });
+    });
+    return { right: right, total: total };
+  }
+  var statsBox = null;
+  function refreshStats() {
+    if (!statsBox) return;
+    statsBox.textContent = "";
+    var s = recallStats();
+    if (s.total) {
+      var pct = Math.round(100 * s.right / s.total);
+      statsBox.appendChild(el("span", null, "Totaal op dit apparaat: "));
+      statsBox.appendChild(el("strong", null, s.right + "/" + s.total + " (" + pct + "%)"));
+    } else {
+      statsBox.appendChild(el("span", "muted", "Nog geen resultaten."));
+    }
+    refreshReport();
+  }
+
+  // --- recall report: send a chapter's score to the bot (deep link, no server) ----
+  // Same loop as LearnX-Radar, Delftse-scoped payload: db_<chapter2>_<marks>, one mark
+  // per report.words position (1 right / 0 wrong / x not trained). Tapping it sends a
+  // /start from your own Telegram; the scheduled sync folds it into spaced repetition.
+  var reportLesson = null, reportBox = null;
+  function wordMarks(lesson) {
+    var kinds = loadResults()[lesson.id] || {};
+    var rights = {}, wrongs = {};
+    Object.keys(kinds).forEach(function (k) {
+      (kinds[k].right || []).forEach(function (a) { rights[norm(a)] = true; });
+      (kinds[k].wrong || []).forEach(function (a) { wrongs[norm(a)] = true; });
+    });
+    return ((lesson.report || {}).words || []).map(function (w) {
+      var f = norm(w.form || "");
+      if (wrongs[f]) return "0";
+      if (rights[f]) return "1";
+      return "x";
+    }).join("");
+  }
+  function refreshReport() {
+    if (!reportBox || !reportLesson) return;
+    reportBox.textContent = "";
+    var rep = reportLesson.report || {};
+    if (!rep.bot || !(rep.words || []).length) return;
+    var marks = wordMarks(reportLesson);
+    if (!/[01]/.test(marks)) return;                 // nothing scored yet this chapter
+    var a = el("a", "score", "✅ Resultaten opslaan");
+    a.href = "https://t.me/" + rep.bot + "?start=db_" +
+             ("0" + reportLesson.chapter).slice(-2) + "_" + marks;
+    reportBox.appendChild(a);
+    reportBox.appendChild(el("span", "report-note",
+      "stuurt je score naar de bot — de sync plant je woorden ernaar (sends your score to the bot)"));
+  }
+
+  // --- HERHALING (cross-chapter review) — active only with ?u=<token> -------------
+  // review/<token>.json (published by the sync runner) is the canonical "what's due";
+  // localStorage only caches this session's attempts. Words play from their own
+  // chapter's mp3 via a SECOND audio element (a different blob than the open chapter).
+  var reviewToken = new URLSearchParams(location.search).get("u");
+  var reviewData = null;
+  var rAudio = new Audio(); rAudio.preload = "metadata"; var rStop = null;
+  setInterval(function () {
+    if (rAudio.paused) return;
+    if (rStop !== null && rAudio.currentTime * 1000 >= rStop - 20) { rAudio.pause(); rStop = null; }
+  }, 40);
+  var spanCache = {};   // chapter-mp3 path -> object URL (fetched once via the API)
+  function playSpan(path, startMs, endMs) {
+    audio.pause();
+    function go(src) {
+      var fresh = rAudio.src !== src;
+      if (fresh) rAudio.src = src;
+      var play = function () { rAudio.currentTime = (startMs + 10) / 1000; rAudio.play(); };
+      rStop = endMs;
+      if (rAudio.readyState >= 1 && !fresh) { play(); return; }
+      rAudio.addEventListener("loadedmetadata", play, { once: true });
+      rAudio.load();
+    }
+    if (spanCache[path]) { go(spanCache[path]); return; }
+    ghBlob(path).then(function (b) { spanCache[path] = URL.createObjectURL(b); go(spanCache[path]); })
+      .catch(function () {});
+  }
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  var RSTORE = "learnx-delftse-review";
+  function loadReviewMarks(date) {
+    try { return (JSON.parse(localStorage.getItem(RSTORE)) || {})[date] || {}; } catch (e) { return {}; }
+  }
+  function saveReviewMark(date, id, ok) {
+    var all;
+    try { all = JSON.parse(localStorage.getItem(RSTORE)) || {}; } catch (e) { all = {}; }
+    all[date] = all[date] || {}; all[date][id] = ok ? 1 : 0;
+    localStorage.setItem(RSTORE, JSON.stringify(all));
+  }
+  function drawReviewReport(box) {
+    if (!box) return;
+    box.textContent = "";
+    var bot = currentLesson && currentLesson.report && currentLesson.report.bot;
+    if (!bot || !reviewData) return;
+    var m = loadReviewMarks(reviewData.generated);
+    var marks = reviewData.ids.map(function (id) { return (id in m) ? (m[id] ? "1" : "0") : "x"; }).join("");
+    if (!/[01]/.test(marks)) return;
+    var a = el("a", "score", "✅ Herhaling opslaan");
+    a.href = "https://t.me/" + bot + "?start=dv_" +
+             reviewData.generated.replace(/-/g, "").slice(2) + "_" + marks;
+    box.appendChild(a);
+    box.appendChild(el("span", "report-note", "stuurt je herhaling naar de bot (sends your review to the bot)"));
+  }
+  function herhalingView() {
+    var wrap = el("div");
+    if (!reviewData || !(reviewData.items || []).length) {
+      wrap.appendChild(el("p", "muted",
+        "Geen herhaling — je bent bij! (Nothing due — you're caught up.)"));
+      return wrap;
+    }
+    wrap.appendChild(el("p", "hint",
+      "Jouw woorden die herhaald moeten worden — vul in uit je geheugen. (Your due words — fill from memory.)"));
+    var marks = loadReviewMarks(reviewData.generated);
+    var inputs = [];
+    reviewData.items.forEach(function (item) {
+      var row = el("div", "cloze-line");
+      if (item.audio_url && item.end_ms) {
+        var play = el("button", "play", "🔊");
+        play.style.marginRight = ".6rem";
+        play.addEventListener("click", function () { playSpan(item.audio_url, item.start_ms || 0, item.end_ms); });
+        row.appendChild(play);
+      }
+      var input = el("input");
+      input.autocapitalize = "none"; input.dataset.id = item.id; input.dataset.form = item.form;
+      inputs.push(input);
+      if (item.sentence_nl) {
+        var parts = item.sentence_nl.split(new RegExp(escapeRe(item.form), "i"));
+        row.appendChild(document.createTextNode(parts[0] || ""));
+        row.appendChild(input);
+        row.appendChild(document.createTextNode(parts.slice(1).join(item.form) || ""));
+        if (item.sentence_en) { var en = el("span", "en", " — " + item.sentence_en); en.style.marginLeft = ".4rem"; row.appendChild(en); }
+      } else {
+        row.appendChild(el("span", null, "„" + (item.en || "") + "” = "));
+        row.appendChild(input);
+      }
+      if (item.id in marks) {
+        if (marks[item.id]) { input.value = item.form; input.classList.add("right"); input.disabled = true; }
+        else { input.classList.add("wrong"); }
+      }
+      wrap.appendChild(row);
+    });
+    var bar = el("p");
+    var score = el("button", "score", "Score");
+    var result = el("span", "result", "");
+    var rb = el("p");
+    score.addEventListener("click", function () {
+      var right = 0;
+      inputs.forEach(function (i) {
+        var ok = norm(i.value) === norm(i.dataset.form);
+        i.classList.toggle("right", ok); i.classList.toggle("wrong", !ok);
+        saveReviewMark(reviewData.generated, i.dataset.id, ok);
+        if (ok) { i.disabled = true; right += 1; }
+      });
+      result.textContent = right + "/" + inputs.length + " goed";
+      drawReviewReport(rb);
+    });
+    bar.appendChild(score); bar.appendChild(result);
+    wrap.appendChild(bar); wrap.appendChild(rb);
+    drawReviewReport(rb);
+    return wrap;
+  }
+  function loadReview() {
+    if (!reviewToken) return;
+    ghJSON("review/" + reviewToken + ".json")
+      .then(function (data) {
+        if (!data || !(data.items || []).length) return;
+        reviewData = data;
+        var tab = document.getElementById("tab-herhaling");
+        if (tab) tab.style.display = "";
+      })
+      .catch(function () {});   // 404 (no review yet) is fine
+  }
+
+  // --- cross-device progress scorecard (progress/<token>.json) --------------------
+  var progress = { days: {}, streak: 0, words: 0 };
+  function loadProgress() {
+    if (!reviewToken) return Promise.resolve();
+    return ghJSON("progress/" + reviewToken + ".json")
+      .then(function (p) {
+        if (!p) return;
+        progress = { days: {}, streak: p.streak || 0, words: p.words_tracked || 0 };
+        (p.days || []).forEach(function (d) { if (d.date) progress.days[d.date] = d; });
+      })
+      .catch(function () {});   // 404 (no scores yet) is fine
+  }
+
+  // --- exam attempts: up to MAX_ATTEMPTS per chapter+exercise --------------------
+  var MAX_ATTEMPTS = 3;
+  var ATT = "learnx-delftse-attempts";
+  function attemptsUsed(id, kind) {
+    try { var all = JSON.parse(localStorage.getItem(ATT)) || {}; return (all[id] || {})[kind] || 0; }
+    catch (e) { return 0; }
+  }
+  function bumpAttempts(id, kind) {
+    var all;
+    try { all = JSON.parse(localStorage.getItem(ATT)) || {}; } catch (e) { all = {}; }
+    all[id] = all[id] || {};
+    all[id][kind] = Math.min(MAX_ATTEMPTS, (all[id][kind] || 0) + 1);
+    localStorage.setItem(ATT, JSON.stringify(all));
+    return all[id][kind];
+  }
+
+  function examControls(id, kind, totalBlanks, inputs, answersByN, onRetake) {
+    var bar = el("p");
+    var used = attemptsUsed(id, kind);
+    var score = el("button", "score", "Score");
+    var retake = el("button", "score retake", "🔁 Opnieuw");
+    var result = el("span", "result", "");
+    var info = el("span", "attempts", "poging " + Math.min(used + 1, MAX_ATTEMPTS) + "/" + MAX_ATTEMPTS);
+    retake.style.display = "none";
+    if (used >= MAX_ATTEMPTS) {
+      score.disabled = true;
+      inputs.forEach(function (i) { i.disabled = true; });
+      info.textContent = "geen pogingen meer (no attempts left)";
+    }
+    score.addEventListener("click", function () {
+      var r = checkInputs(inputs, answersByN);
+      used = bumpAttempts(id, kind);
+      result.textContent = r.right.length + "/" + totalBlanks + " goed";
+      saveResult(id, kind, r.right, r.wrong);
+      inputs.forEach(function (i) { i.disabled = true; });
+      score.disabled = true;
+      info.textContent = "poging " + used + "/" + MAX_ATTEMPTS + " gebruikt";
+      if (used < MAX_ATTEMPTS && r.wrong.length) retake.style.display = "";
+    });
+    retake.addEventListener("click", function () {
+      inputs.forEach(function (i) { i.disabled = false; i.value = ""; i.classList.remove("right", "wrong"); });
+      score.disabled = false;
+      retake.style.display = "none";
+      result.textContent = "";
+      info.textContent = "poging " + Math.min(used + 1, MAX_ATTEMPTS) + "/" + MAX_ATTEMPTS;
+      if (onRetake) onRetake();
+    });
+    bar.appendChild(score); bar.appendChild(retake); bar.appendChild(result); bar.appendChild(info);
+    return bar;
+  }
+
+  // --- player widget: prev / play-pause / next / slider over a segment range ----
+  function makePlayer(segments, opts) {
+    opts = opts || {};
+    var first = segments[0].start_ms, last = segments[segments.length - 1].end_ms;
+    var box = el("div", "player");
+    var buttons = el("div", "buttons");
+    var prev = el("button", null, "⏮");
+    var toggle = el("button", null, "▶");
+    var next = el("button", null, "⏭");
+    buttons.appendChild(prev); buttons.appendChild(toggle); buttons.appendChild(next);
+    if (opts.peek) {
+      var peekBtn = el("button", null, "𝐀");
+      peekBtn.title = "Lees mee (read along)";
+      buttons.appendChild(peekBtn);
+    }
+    box.appendChild(buttons);
+    var slider = el("input");
+    slider.type = "range"; slider.min = 0; slider.max = 1000; slider.value = 0;
+    box.appendChild(slider);
+    var peekBox = opts.peek ? el("div", "peek-box", "") : null;
+    if (peekBox) box.appendChild(peekBox);
+    var peeking = false, playing = false;
+
+    function segAt(ms) {
+      for (var i = segments.length - 1; i >= 0; i--) if (ms >= segments[i].start_ms) return i;
+      return 0;
+    }
+    function setPlaying(p) { playing = p; toggle.textContent = p ? "⏸" : "▶"; }
+    function activate() {
+      onTick = function (ms) {
+        var frac = (ms - first) / (last - first);
+        slider.value = Math.max(0, Math.min(1000, Math.round(frac * 1000)));
+        var i = segAt(ms);
+        if (opts.onSegment) opts.onSegment(i);
+        if (peekBox) peekBox.textContent = peeking ? segments[i].nl : "";
+      };
+      onStop = function () { setPlaying(false); };
+    }
+    toggle.addEventListener("click", function () {
+      activate();
+      if (playing) { audio.pause(); setPlaying(false); return; }
+      var pos = audio.currentTime * 1000;
+      if (pos < first || pos >= last) playRange(first, last);
+      else { stopAt = last; audio.play(); }
+      setPlaying(true);
+    });
+    prev.addEventListener("click", function () {
+      activate();
+      var i = Math.max(0, segAt(audio.currentTime * 1000) - 1);
+      playRange(segments[i].start_ms, last); setPlaying(true);
+    });
+    next.addEventListener("click", function () {
+      activate();
+      var i = Math.min(segments.length - 1, segAt(audio.currentTime * 1000) + 1);
+      playRange(segments[i].start_ms, last); setPlaying(true);
+    });
+    slider.addEventListener("input", function () {
+      activate();
+      var ms = first + (slider.value / 1000) * (last - first);
+      playRange(ms, last); setPlaying(true);
+    });
+    if (opts.peek) {
+      peekBtn.addEventListener("click", function () {
+        peeking = !peeking;
+        peekBtn.classList.toggle("toggled", peeking);
+        if (!peeking && peekBox) peekBox.textContent = "";
+      });
+    }
+    return box;
+  }
+
+  // --- LEREN steps 1-4 (Delft input phases) --------------------------------------
+  var HINTS = {
+    1: "Luister per zin. Tik op de vertaling als je die nodig hebt. (Listen per sentence; tap to reveal the translation.)",
+    2: "Luister naar het hele gesprek en lees mee. (Listen to the whole text and read along.)",
+    3: "Luister en spreek na in de pauze — zonder tekst. Tik 𝐀 om even mee te lezen. (Listen and repeat in the pause — no text. Tap 𝐀 to peek.)",
+    4: "Luister naar het hele gesprek — zonder tekst. (Listen to the whole text — no text.)",
+  };
+  function lerenView(lesson, step) {
+    var wrap = el("div");
+    wrap.appendChild(el("p", "hint", HINTS[step]));
+    var segB = lesson.segments.filter(function (s) { return s.block === "B"; });
+    var segC = lesson.segments.filter(function (s) { return s.block === "C"; });
+    if (step === 1) {
+      var seen = {};
+      lesson.segments.forEach(function (seg) {
+        if (seg.block === "B") return;
+        if (seg.block === "A" && seen[seg.nl]) return;
+        seen[seg.nl] = true;
+        var row = el("div", "line");
+        var play = el("button", "play", "🔊");
+        play.addEventListener("click", function () { playRange(seg.start_ms, seg.end_ms); });
+        row.appendChild(play);
+        row.appendChild(el("span", "nl", seg.nl));
+        if (seg.en) {
+          var en = el("span", "en veiled", seg.en);
+          en.title = "vertaling (tap to reveal)";
+          en.addEventListener("click", function () { en.classList.remove("veiled"); });
+          row.appendChild(en);
+        }
+        wrap.appendChild(row);
+      });
+    } else if (step === 2 && segC.length) {
+      var lines = [];
+      var transcript = el("div", "transcript");
+      segC.forEach(function (seg, i) {
+        var row = el("div", "line");
+        row.appendChild(el("span", "nl", (lesson.dialogue[i] ? lesson.dialogue[i].speaker + ": " : "") + seg.nl));
+        if (seg.en) row.appendChild(el("span", "en", seg.en));
+        lines.push(row); transcript.appendChild(row);
+      });
+      wrap.appendChild(makePlayer(segC, {
+        onSegment: function (i) { lines.forEach(function (l, j) { l.classList.toggle("now", i === j); }); },
+      }));
+      wrap.appendChild(transcript);
+    } else if (step === 3 && segB.length) {
+      wrap.appendChild(makePlayer(segB, { peek: true }));
+    } else if (step === 4 && segC.length) {
+      wrap.appendChild(makePlayer(segC, {}));
+    } else {
+      wrap.appendChild(el("p", "muted", "Geen audio voor deze stap."));
+    }
+    return wrap;
+  }
+
+  // --- LEREN step 5: Dictee -> Combineren -> Dictee ------------------------------
+  function dicteeItems(lesson) {
+    var segByNl = {};
+    (lesson.segments || []).forEach(function (s) { if (s.block === "A" && !segByNl[s.nl]) segByNl[s.nl] = s; });
+    var sentById = {};
+    (lesson.sentences || []).forEach(function (s) { if (s.id && !sentById[s.id]) sentById[s.id] = s; });
+    var words = [], sents = [];
+    (lesson.new_words || []).forEach(function (w) {
+      var wseg = segByNl[w.nl];
+      if (wseg) words.push({ id: w.id, nl: w.nl, en: w.en || "", kind: "word",
+                             start_ms: wseg.start_ms, end_ms: wseg.end_ms });
+      var sent = sentById[w.id], sseg = sent && segByNl[sent.nl];
+      if (sseg) sents.push({ id: w.id, nl: sent.nl, en: sent.en || "", kind: "sent",
+                             start_ms: sseg.start_ms, end_ms: sseg.end_ms });
+    });
+    return { words: words, sents: sents };
+  }
+  function clean(s) { return s.toLowerCase().replace(/[.,!?;:'"]/g, "").trim().replace(/\s+/g, " "); }
+  function stripArt(s) { return clean(s).replace(/^(de|het|een)\s+/, ""); }
+  function dicteeOk(val, target, isWord) {
+    var v = clean(val);
+    if (!v) return false;
+    if (v === clean(target)) return true;
+    return isWord && stripArt(val) === stripArt(target);
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function dicteeView(lesson) {
+    var data = dicteeItems(lesson), words = data.words, sents = data.sents;
+    var wrap = el("div");
+    if (!words.length && !sents.length) {
+      wrap.appendChild(el("p", "muted", "Geen woorden om te dicteren. (No words to dictate.)"));
+      return wrap;
+    }
+    var steps = el("p", "subhint", "");
+    var body = el("div", "dictee");
+    wrap.appendChild(steps); wrap.appendChild(body);
+    var firstMisses = [];
+    function order(list, round2) {
+      if (!round2) return list.slice();
+      var miss = list.filter(function (it) { return firstMisses.indexOf(it.nl) >= 0; });
+      var keep = list.filter(function (it) { return firstMisses.indexOf(it.nl) < 0; });
+      return miss.concat(keep);
+    }
+    function dictee(round) {
+      steps.textContent = round === 1
+        ? "Stap 5 · Dictee 1 van 2 — luister en typ (listen and type)"
+        : "Stap 5 · Dictee 2 van 2 — nu uit je geheugen (now from memory)";
+      body.textContent = "";
+      body.appendChild(el("p", "hint",
+        "Tik 🔊, typ wat je hoort, en kijk het na. Lidwoord (de/het) en leestekens mogen weg."));
+      var rows = [];
+      var check = el("button", "score", "Nakijken");
+      function addGroup(title, list) {
+        if (!list.length) return;
+        body.appendChild(el("p", "subhint", title));
+        order(list, round === 2).forEach(function (it) {
+          var row = el("div", "line");
+          var play = el("button", "play", "🔊");
+          play.addEventListener("click", function () { playRange(it.start_ms, it.end_ms); });
+          var input = el("input");
+          input.type = "text"; input.autocapitalize = "off"; input.autocomplete = "off"; input.spellcheck = false;
+          input.placeholder = it.kind === "word" ? "typ het woord" : "typ de zin";
+          input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !check.disabled) check.click(); });
+          var ans = el("span", "en", "");
+          row.appendChild(play); row.appendChild(input); row.appendChild(ans);
+          body.appendChild(row);
+          rows.push({ it: it, input: input, ans: ans });
+        });
+      }
+      addGroup("Woorden (words)", words);
+      addGroup("Zinnen (sentences)", sents);
+      var next = el("button", "score retake", round === 1 ? "→ Combineren" : "🔁 Opnieuw");
+      next.style.display = "none";
+      var result = el("span", "result", "");
+      check.addEventListener("click", function () {
+        var right = [], wrong = [], got = 0;
+        if (round === 1) firstMisses = [];
+        rows.forEach(function (r) {
+          var isWord = r.it.kind === "word";
+          var ok = dicteeOk(r.input.value, r.it.nl, isWord);
+          r.input.disabled = true;
+          r.input.classList.add(ok ? "right" : "wrong");
+          r.ans.textContent = ok ? "✓ " + r.it.nl : r.it.nl + (isWord ? " — " + r.it.en : "");
+          if (ok) got++;
+          if (isWord) (ok ? right : wrong).push(r.it.id);
+          if (!ok && round === 1) firstMisses.push(r.it.nl);
+        });
+        result.textContent = got + "/" + rows.length + " goed";
+        check.disabled = true; next.style.display = "";
+        if (round === 2 && (right.length || wrong.length)) saveResult(lesson.id, "dicteren", right, wrong);
+      });
+      next.addEventListener("click", function () {
+        if (round === 1) { words.length >= 2 ? combineren() : dictee(2); }
+        else { firstMisses = []; dictee(1); }
+      });
+      var bar = el("p");
+      bar.appendChild(check); bar.appendChild(next); bar.appendChild(result);
+      body.appendChild(bar);
+      if (rows.length) { rows[0].input.focus(); playRange(rows[0].it.start_ms, rows[0].it.end_ms); }
+    }
+    function combineren() {
+      steps.textContent = "Stap 5 · Combineren — koppel woord en betekenis (match word and meaning)";
+      body.textContent = "";
+      body.appendChild(el("p", "hint", "Tik een woord en dan de juiste betekenis. (Tap a word, then its meaning.)"));
+      var grid = el("div", "match-grid");
+      var leftCol = el("div", "match-col"), rightCol = el("div", "match-col");
+      grid.appendChild(leftCol); grid.appendChild(rightCol);
+      body.appendChild(grid);
+      var next = el("button", "score", "→ Dictee 2");
+      next.disabled = true;
+      var sel = null, done = 0;
+      shuffle(words).forEach(function (it) {
+        var b = el("button", "chip", it.nl);
+        b.addEventListener("click", function () {
+          if (b.classList.contains("done")) return;
+          if (sel) sel.btn.classList.remove("sel");
+          sel = { it: it, btn: b }; b.classList.add("sel");
+        });
+        leftCol.appendChild(b);
+      });
+      shuffle(words).forEach(function (it) {
+        var b = el("button", "chip", it.en);
+        b.addEventListener("click", function () {
+          if (b.classList.contains("done") || !sel) return;
+          if (sel.it.id === it.id) {
+            sel.btn.classList.remove("sel"); sel.btn.classList.add("done"); sel.btn.disabled = true;
+            b.classList.add("done"); b.disabled = true; sel = null;
+            if (++done === words.length) next.disabled = false;
+          } else {
+            b.classList.add("miss");
+            setTimeout(function () { b.classList.remove("miss"); }, 350);
+          }
+        });
+        rightCol.appendChild(b);
+      });
+      next.addEventListener("click", function () { dictee(2); });
+      var bar = el("p"); bar.appendChild(next); body.appendChild(bar);
+    }
+    dictee(1);
+    return wrap;
+  }
+
+  // --- TEST: gatentekst ----------------------------------------------------------
+  function buildClozeLine(text, inputs, numberOffset) {
+    var div = el("div", "cloze-line");
+    var parts = text.split(/___ \((\d+)\)/g);
+    for (var i = 0; i < parts.length; i++) {
+      if (i % 2 === 0) { div.appendChild(document.createTextNode(parts[i])); continue; }
+      var input = el("input");
+      input.dataset.n = (numberOffset || 0) + parseInt(parts[i], 10);
+      input.autocapitalize = "none";
+      inputs.push(input);
+      div.appendChild(input);
+    }
+    return div;
+  }
+  function checkInputs(inputs, answersByN) {
+    var right = [], wrong = [];
+    inputs.forEach(function (input) {
+      var want = answersByN[input.dataset.n] || "";
+      var ok = norm(input.value) === norm(want);
+      input.classList.toggle("right", ok);
+      input.classList.toggle("wrong", !ok);
+      if (ok) { input.disabled = true; right.push(want); } else { wrong.push(want); }
+    });
+    return { right: right, wrong: wrong };
+  }
+  function gatentekstView(lesson) {
+    var wrap = el("div");
+    wrap.appendChild(el("p", "hint", "Vul de juiste woorden in — eerst uit je geheugen. (Fill in the words from memory first.)"));
+    if (!lesson.cloze || !lesson.cloze.answers.length) {
+      wrap.appendChild(el("p", "muted", "Geen invuloefening voor dit hoofdstuk.")); return wrap;
+    }
+    var inputs = [], answersByN = {};
+    lesson.cloze.answers.forEach(function (a, i) { answersByN[i + 1] = a; });
+    lesson.cloze.lines.forEach(function (line) { wrap.appendChild(buildClozeLine(line, inputs, 0)); });
+    wrap.appendChild(examControls(lesson.id, "gatentekst", lesson.cloze.answers.length, inputs, answersByN));
+    return wrap;
+  }
+
+  // --- TEST: luistertoets --------------------------------------------------------
+  function luistertoetsView(lesson) {
+    var wrap = el("div");
+    wrap.appendChild(el("p", "hint",
+      "Luister één keer per zin — daarna is de knop weg — en vul de woorden in. (One listen per sentence, then fill in.)"));
+    var segC = lesson.segments.filter(function (s) { return s.block === "C"; });
+    var items = lesson.luistertoets || [];
+    if (!items.length || !segC.length) { wrap.appendChild(el("p", "muted", "Geen luistertoets.")); return wrap; }
+    var inputs = [], answersByN = {}, n = 0, totalBlanks = 0;
+    var plays = [], keys = [];
+    items.forEach(function (item, i) {
+      var row = el("div", "lt-row");
+      var play = el("button", "play", "🔊");
+      var key = "learnx-delftse-lt-" + lesson.id + "-" + i;
+      plays.push(play); keys.push(key);
+      if (localStorage.getItem(key)) { play.disabled = true; play.textContent = "✓"; }
+      play.style.marginRight = ".6rem";
+      play.addEventListener("click", function () {
+        localStorage.setItem(key, "1"); play.disabled = true; play.textContent = "✓";
+        if (segC[i]) playRange(segC[i].start_ms, segC[i].end_ms);
+      });
+      row.appendChild(play);
+      row.appendChild(el("span", "speaker", item.speaker + ":"));
+      var offset = n;
+      item.answers.forEach(function (a) { n += 1; answersByN[n] = a; totalBlanks += 1; });
+      var text = item.nl.replace(/___ \((\d+)\)/g, function (m, d) { return "___ (" + (offset + parseInt(d, 10)) + ")"; });
+      var line = buildClozeLine(text, inputs, 0);
+      line.style.display = "inline";
+      row.appendChild(line);
+      wrap.appendChild(row);
+    });
+    if (!totalBlanks) { wrap.appendChild(el("p", "muted", "Geen doelwoorden in dit hoofdstuk.")); return wrap; }
+    wrap.appendChild(examControls(lesson.id, "luistertoets", totalBlanks, inputs, answersByN,
+      function () { keys.forEach(function (k) { localStorage.removeItem(k); });
+        plays.forEach(function (p) { p.disabled = false; p.textContent = "🔊"; }); }));
+    return wrap;
+  }
+
+  // --- VRAGEN: the spreken Q&A ----------------------------------------------------
+  function vragenView(lesson) {
+    var wrap = el("div");
+    var vragen = lesson.vragen || [];
+    if (!vragen.length) { wrap.appendChild(el("p", "muted", "Geen vragen voor dit hoofdstuk.")); return wrap; }
+    wrap.appendChild(el("p", "hint",
+      "Lees of beluister de vraag, geef hardop antwoord, en toon daarna het modelantwoord. "
+      + "(Read or hear the question, answer aloud, then reveal the model answer.)"));
+    vragen.forEach(function (v) {
+      var card = el("div", "vraag");
+      card.appendChild(el("div", "q", v.q));
+      var ans = el("div", "a", v.a);
+      var row = el("div", "row");
+      var hear = el("button", "speak", "🔊 vraag");
+      hear.addEventListener("click", function () { speak(v.q); });
+      var reveal = el("button", null, "👁 toon antwoord");
+      reveal.addEventListener("click", function () {
+        card.classList.toggle("open");
+        reveal.textContent = card.classList.contains("open") ? "🙈 verberg" : "👁 toon antwoord";
+      });
+      var hearA = el("button", null, "🔊 antwoord");
+      hearA.addEventListener("click", function () { speak(v.a); });
+      row.appendChild(hear); row.appendChild(reveal); row.appendChild(hearA);
+      card.appendChild(row); card.appendChild(ans);
+      wrap.appendChild(card);
+    });
+    return wrap;
+  }
+
+  // --- LESSEN: chapter list + scores (the picker also lives in the header) --------
+  function lessenView(lesson) {
+    var wrap = el("div");
+    wrap.appendChild(el("p", "hint",
+      "Alle hoofdstukken en je scores. Tik ▶ om een hoofdstuk te openen. (All chapters and your scores. Tap ▶ to open one.)"));
+    if (progress.streak || progress.words) {
+      wrap.appendChild(el("p", "synced",
+        "Gesynchroniseerd: " + progress.words + " woorden · reeks " + progress.streak));
+    }
+    var all = loadResults();
+    if (!chapters.length) { wrap.appendChild(el("p", "muted", "Geen hoofdstukken gevonden.")); return wrap; }
+    chapters.forEach(function (c) {
+      var id = "book1-" + ("0" + c.chapter).slice(-2);
+      var row = el("div", "les-row");
+      if (lesson && id === lesson.id) row.classList.add("open");
+      if (!lesson || id !== lesson.id) {
+        var open = el("button", "play", "▶");
+        open.title = "Open dit hoofdstuk";
+        open.addEventListener("click", function () { openChapter(c.chapter); });
+        row.appendChild(open);
+      }
+      row.appendChild(el("span", "les", "H" + c.chapter));
+      row.appendChild(el("span", "title", c.title || ""));
+      var right = 0, total = 0, kinds = all[id] || {};
+      Object.keys(kinds).forEach(function (k) {
+        right += (kinds[k].right || []).length;
+        total += (kinds[k].right || []).length + (kinds[k].wrong || []).length;
+      });
+      var synced = false;
+      if (!total && progress.days[id]) {        // no local result -> the synced score
+        right = progress.days[id].right || 0;
+        total = right + (progress.days[id].wrong || 0);
+        synced = total > 0;
+      }
+      var meta = el("span", "meta");
+      var used = Math.max(attemptsUsed(id, "gatentekst"), attemptsUsed(id, "luistertoets"));
+      if (used) meta.appendChild(el("span", "attempts", used >= MAX_ATTEMPTS ? "klaar" : "poging " + used + "/" + MAX_ATTEMPTS));
+      if (total) {
+        meta.appendChild(el("span", "pct", Math.round(100 * right / total) + "%"));
+        meta.appendChild(el("span", "check", synced ? "☁" : "✔"));
+      } else {
+        meta.appendChild(el("span", "pct muted", "—"));
+      }
+      row.appendChild(meta);
+      wrap.appendChild(row);
+    });
+    return wrap;
+  }
+
+  // --- page assembly --------------------------------------------------------------
+  var chapters = [];        // index.json — [{chapter, title, json, audio}]
+  var currentLesson = null;
+  var state = { tab: "leren", step: 1, sub: "gatentekst" };
+
+  function loadAudio(lesson) {
+    ghBlob("delftse-" + lesson.chapter + ".mp3")
+      .then(function (b) { audio.src = URL.createObjectURL(b); })
+      .catch(function () {});   // player just stays idle if the audio can't load
+  }
+  function setTab(t) {
+    state.tab = t;
+    document.querySelectorAll("#tabs button").forEach(function (x) { x.classList.toggle("active", x.dataset.tab === t); });
+  }
+  function openChapter(n) {
+    ghJSON("delftse-" + n + ".json")
+      .then(render)
+      .catch(function (e) {
+        if (e && e.auth) { showLogin("Token ongeldig of verlopen. (Token invalid/expired.)"); return; }
+        document.getElementById("meta").textContent = "hoofdstuk " + n + " niet gevonden";
+      });
+  }
+
+  function draw() {
+    var lesson = currentLesson;
+    app.textContent = "";
+    var pills = el("div", "pills");
+    if (state.tab === "leren") {
+      [1, 2, 3, 4, 5].forEach(function (s) {
+        var b = el("button", s === state.step ? "active" : "", String(s));
+        b.addEventListener("click", function () { state.step = s; draw(); });
+        pills.appendChild(b);
+      });
+      app.appendChild(pills);
+      app.appendChild(state.step === 5 ? dicteeView(lesson) : lerenView(lesson, state.step));
+    } else if (state.tab === "vragen") {
+      app.appendChild(vragenView(lesson));
+      return;
+    } else if (state.tab === "herhaling") {
+      app.appendChild(herhalingView());
+      return;   // the review tab manages its own report; skip the chapter report/stats
+    } else if (state.tab === "lessen") {
+      app.appendChild(lessenView(lesson));
+    } else {
+      ["gatentekst", "luistertoets"].forEach(function (k) {
+        var b = el("button", k === state.sub ? "active" : "", k);
+        b.addEventListener("click", function () { state.sub = k; draw(); });
+        pills.appendChild(b);
+      });
+      app.appendChild(pills);
+      app.appendChild(state.sub === "gatentekst" ? gatentekstView(lesson) : luistertoetsView(lesson));
+    }
+    reportBox = el("p");
+    app.appendChild(reportBox);
+    statsBox = el("p", "stats");
+    app.appendChild(statsBox);
+    refreshStats();
+  }
+
+  document.querySelectorAll("#tabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      audio.pause(); rAudio.pause(); rStop = null; stopAt = null; onTick = null; onStop = null;
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      setTab(b.dataset.tab); draw();
+    });
+  });
+
+  var chapsel = document.getElementById("chapsel");
+  chapsel.addEventListener("change", function () { openChapter(parseInt(chapsel.value, 10)); });
+  function syncPicker(n) {
+    chapsel.textContent = "";
+    chapters.forEach(function (c) {
+      var o = el("option", null, "H" + c.chapter + " · " + (c.title || ""));
+      o.value = c.chapter;
+      if (c.chapter === n) o.selected = true;
+      chapsel.appendChild(o);
+    });
+    chapsel.style.display = chapters.length ? "" : "none";
+  }
+
+  function render(lesson) {
+    audio.pause(); rAudio.pause(); rStop = null; stopAt = null; onTick = null; onStop = null;
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    lesson.id = lesson.date || ("book1-" + ("0" + lesson.chapter).slice(-2));
+    currentLesson = lesson;
+    reportLesson = lesson;
+    document.getElementById("meta").textContent =
+      "H" + lesson.chapter + " · " + (lesson.title || lesson.theme) + " · " + lesson.cefr;
+    loadAudio(lesson);
+    syncPicker(lesson.chapter);
+    document.getElementById("tabs").style.display = "";
+    setTab("leren"); state.step = 1; draw();
+  }
+
+  // --- token login (the Path-2 gate) ----------------------------------------------
+  function showLogin(msg) {
+    document.getElementById("tabs").style.display = "none";
+    document.getElementById("chapsel").style.display = "none";
+    document.getElementById("meta").textContent = "login";
+    app.textContent = "";
+    var box = el("div", "hint");
+    box.style.lineHeight = "1.7";
+    box.appendChild(el("p", null,
+      "Plak je read-only GitHub-token om de lessen te laden. "
+      + "(Paste your read-only GitHub token to load the lessons.)"));
+    if (msg) { var m = el("p", null, msg); m.style.color = "var(--red)"; m.style.fontWeight = "800"; box.appendChild(m); }
+    var inp = el("input"); inp.type = "password"; inp.placeholder = "github_pat_…";
+    inp.autocapitalize = "off"; inp.autocomplete = "off"; inp.spellcheck = false;
+    inp.style.cssText = "width:100%;padding:.5rem;margin:.5rem 0;border:2px solid var(--border);border-radius:10px;font:inherit;";
+    var btn = el("button", "score", "Inloggen");
+    box.appendChild(inp); box.appendChild(document.createElement("br")); box.appendChild(btn);
+    var note = el("p", "muted");
+    note.style.fontSize = ".85rem";
+    note.textContent = "Het token blijft alleen op dit apparaat (localStorage). (Stays on this device only.)";
+    box.appendChild(note);
+    app.appendChild(box); inp.focus();
+    function submit() {
+      var v = inp.value.trim();
+      if (!v) return;
+      GH.token = v; localStorage.setItem(GH.key, v); boot();
+    }
+    btn.addEventListener("click", submit);
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") submit(); });
+  }
+
+  // Load the chapter list, then the first chapter (or ?h=<n>) — all via the API.
+  function boot() {
+    document.getElementById("meta").textContent = "laden…";
+    app.textContent = "";
+    app.appendChild(el("p", "muted", "Loading…"));
+    ghJSON("index.json")
+      .then(function (idx) {
+        chapters = (idx && idx.chapters) || [];
+        var want = parseInt(new URLSearchParams(location.search).get("h"), 10);
+        var first = (chapters[0] || {}).chapter || 1;
+        openChapter(isNaN(want) ? first : want);
+        loadReview();
+        loadProgress().then(function () { if (state.tab === "lessen") draw(); });
+      })
+      .catch(function (e) {
+        if (e && e.auth) {
+          localStorage.removeItem(GH.key); GH.token = "";
+          showLogin("Token ongeldig of geen toegang. (Invalid token / no access.)");
+          return;
+        }
+        document.getElementById("meta").textContent = "geen verbinding";
+        app.textContent = "";
+        app.appendChild(el("p", "muted", "Kon de lessen niet laden. (Could not load lessons.)"));
+      });
+  }
+
+  if (GH.token) boot(); else showLogin();
+})();
+</script>
+</body></html>

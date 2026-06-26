@@ -1,0 +1,8 @@
+<!doctype html>
+<!-- Root entry for GitHub Pages: redirect to the trainer shell, preserving the query
+     string (?u=<token>, ?h=<chapter>). The shell fetches all lessons from the private
+     LearnX-Delftse-state repo via the GitHub API once you log in with your token. -->
+<meta charset="utf-8">
+<title>LearnX-Delftse</title>
+<script>location.replace("trainer/delftse.html" + location.search + location.hash);</script>
+<noscript><a href="trainer/delftse.html">Open the Delftse trainer</a></noscript>
