@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="trainer/favicon.svg" width="96" height="96" alt="LearnX-Delftse logo">
+  <img src="trainer/logo.svg" alt="LearnX-Delftse" width="440">
 </p>
 
 <h1 align="center">LearnX-Delftse</h1>
