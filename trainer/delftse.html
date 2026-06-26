@@ -256,6 +256,11 @@
     return n;
   }
   function norm(s) { return s.trim().toLowerCase().replace(/\s+/g, " "); }
+  // URL-safe base64 of a UTF-8 string (Telegram deep-link payloads allow [A-Za-z0-9_-]).
+  function b64url(s) {
+    return btoa(unescape(encodeURIComponent(s)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
 
   // Browser TTS for the VRAGEN tab (the Q&A isn't in the lesson MP3). Guarded —
   // a device with no Dutch voice just falls back to whatever it has.
@@ -331,16 +336,40 @@
       return "x";
     }).join("");
   }
+  // Whole-chapter test tally across every scored exercise (gatentekst, luistertoets,
+  // dicteren): total right/wrong/blank counts + the wrong answers' text (for the report).
+  function testTally(lesson) {
+    var kinds = loadResults()[lesson.id] || {};
+    var R = 0, W = 0, B = 0, wrong = [];
+    Object.keys(kinds).forEach(function (k) {
+      var e = kinds[k];
+      R += (e.right || []).length;
+      W += (e.wrong || []).length;
+      B += (e.blank || []).length;
+      (e.wrong || []).forEach(function (a) { if (a) wrong.push(a); });
+    });
+    return { R: R, W: W, B: B, wrong: wrong };
+  }
   function refreshReport() {
     if (!reportBox || !reportLesson) return;
     reportBox.textContent = "";
     var rep = reportLesson.report || {};
     if (!rep.bot || !(rep.words || []).length) return;
-    var marks = wordMarks(reportLesson);
-    if (!/[01b]/.test(marks)) return;                // nothing attempted yet this chapter
+    var t = testTally(reportLesson);
+    if (t.R + t.W + t.B === 0) return;               // nothing scored yet this chapter
+    // dt_<NN>_<vocabMarks>_<R>-<W>-<B>_<wrongWordsB64> — keep the 64-char deep-link
+    // budget: vocab marks drive SR, the tally feeds the Telegram summary, and we pack
+    // as many wrong words as fit (the sync shows "+N more" for the remainder).
+    var head = "dt_" + ("0" + reportLesson.chapter).slice(-2) + "_" + wordMarks(reportLesson) +
+               "_" + t.R + "-" + t.W + "-" + t.B;
+    var budget = 64 - head.length - 1, packed = [];
+    for (var i = 0; i < t.wrong.length; i++) {
+      if (b64url(packed.concat([t.wrong[i]]).join("|")).length > budget) break;
+      packed.push(t.wrong[i]);
+    }
+    var payload = head + (packed.length ? "_" + b64url(packed.join("|")) : "");
     var a = el("a", "score", "✅ Resultaten opslaan");
-    a.href = "https://t.me/" + rep.bot + "?start=db_" +
-             ("0" + reportLesson.chapter).slice(-2) + "_" + marks;
+    a.href = "https://t.me/" + rep.bot + "?start=" + payload;
     reportBox.appendChild(a);
     reportBox.appendChild(el("span", "report-note",
       "stuurt je score naar de bot — de sync plant je woorden ernaar (sends your score to the bot)"));

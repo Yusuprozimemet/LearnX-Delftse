@@ -13,6 +13,7 @@ Delftse payloads (distinct from Radar's dr_/rv_/lr_ on purpose):
 NOTE (shared bot): acking drops ALL pending updates, including Radar's. If both apps
 consume this same bot, they race — keep only one consumer active (see README).
 """
+import base64
 import re
 from datetime import datetime
 
@@ -24,6 +25,19 @@ _GET = "https://api.telegram.org/bot{token}/getUpdates"
 _SEND = "https://api.telegram.org/bot{token}/sendMessage"
 _RECALL = re.compile(r"^/start\s+db_(\d{2})_([01xb]+)$")
 _REVIEW = re.compile(r"^/start\s+dv_(\d{6})_([01xb]+)$")
+# Full-test report: dt_<chap>_<vocabMarks>_<R>-<W>-<B>_<wrongWordsB64> (b64 optional).
+_REPORT = re.compile(r"^/start\s+dt_(\d{2})_([01xb]+)_(\d+)-(\d+)-(\d+)(?:_([A-Za-z0-9_-]+))?$")
+
+
+def _b64url_decode(s: str) -> list[str]:
+    """Decode the packed wrong-answer list (URL-safe base64 of forms joined by '|')."""
+    if not s:
+        return []
+    try:
+        raw = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4)).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return []
+    return [w for w in raw.split("|") if w]
 
 
 def send(text: str) -> bool:
@@ -57,9 +71,10 @@ def fetch_inbound() -> dict:
     """Collect pending owner taps in one acknowledged batch.
 
     Returns {"recall": [(chapter_int, marks), ...],
+             "report": [(chapter_int, vocab_marks, R, W, B, [wrong_forms]), ...],
              "review": [(date_iso, marks), ...], "last_id": int}.
     One entry per key — the LAST tap in the batch wins (a re-study supersedes)."""
-    empty: dict = {"recall": [], "review": [], "last_id": 0}
+    empty: dict = {"recall": [], "report": [], "review": [], "last_id": 0}
     if not (config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID):
         return empty
     resp = requests.get(_GET.format(token=config.TELEGRAM_BOT_TOKEN),
@@ -72,13 +87,17 @@ def fetch_inbound() -> dict:
 
     owner = str(config.TELEGRAM_CHAT_ID)
     recall: dict[int, str] = {}
+    report: dict[int, tuple] = {}
     review: dict[str, str] = {}
     for u in updates:
         msg = u.get("message") or {}
         if str((msg.get("chat") or {}).get("id", "")) != owner:
             continue
         text = (msg.get("text") or "").strip()
-        if m := _RECALL.match(text):
+        if m := _REPORT.match(text):
+            report[int(m.group(1))] = (m.group(2), int(m.group(3)), int(m.group(4)),
+                                       int(m.group(5)), _b64url_decode(m.group(6) or ""))
+        elif m := _RECALL.match(text):
             recall[int(m.group(1))] = m.group(2)
         elif m := _REVIEW.match(text):
             if d := _parse_date(m.group(1)):
@@ -89,4 +108,5 @@ def fetch_inbound() -> dict:
     requests.get(_GET.format(token=config.TELEGRAM_BOT_TOKEN),
                  params={"offset": last_id + 1, "timeout": 0, "limit": 1}, timeout=30)
     return {"recall": sorted(recall.items()),
+            "report": [(ch, *vals) for ch, vals in sorted(report.items())],
             "review": sorted(review.items()), "last_id": last_id}
