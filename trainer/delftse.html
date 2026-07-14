@@ -165,6 +165,8 @@
                     justify-content:center; font-size:.8rem; }
   .les-row.open { border-color:var(--green); background:var(--green-soft); }
   .subhint { color:var(--grey); font-weight:800; font-size:.85rem; margin:.4rem 0; }
+  button.fold { display:block; background:none; border:0; padding:.4rem 0; cursor:pointer;
+    color:var(--grey); font:inherit; font-weight:800; font-size:.85rem; }
   .dictee .line input { font:inherit; font-weight:700; width:9rem; padding:.2rem .55rem;
                         border:2px solid var(--border); border-radius:10px; background:#fff; }
   .dictee .line input:focus { outline:none; border-color:var(--blue); }
@@ -658,13 +660,30 @@
     return box;
   }
 
+  // A collapsed-by-default section: the vocab lists are reference, not the learning
+  // object — the dialogue is. One tap shows them for whoever wants the list anyway.
+  function foldaway(label) {
+    var box = el("div");
+    var body = el("div");
+    body.style.display = "none";
+    var btn = el("button", "fold", "▸ " + label);
+    btn.addEventListener("click", function () {
+      var open = body.style.display === "none";
+      body.style.display = open ? "" : "none";
+      btn.textContent = (open ? "▾ " : "▸ ") + label;
+    });
+    box.appendChild(btn);
+    box.appendChild(body);
+    return { box: box, body: body };
+  }
+
   // --- LEREN step 0: OVERZICHT — the whole shape before any detail ----------------
-  // Map-first: skim the word list and the dialogue once, see what's coming, then
-  // start step 1. Details land better when there's already a skeleton to hang on.
+  // Map-first: skim the dialogue once, see what's coming, then start step 1. The
+  // word list stays folded away — words are met inside sentences, not as a list.
   function overzichtView(lesson) {
     var wrap = el("div");
     wrap.appendChild(el("p", "hint",
-      "Eerst het geheel, dan de details: bekijk de woorden en het gesprek in vogelvlucht — niet studeren, alleen de vorm zien. "
+      "Eerst het geheel, dan de details: bekijk het gesprek in vogelvlucht — niet studeren, alleen de vorm zien. "
       + "(See the whole shape first — skim, don't study. Then start step 1.)"));
     var nWords = (lesson.new_words || []).length;
     var nDia = (lesson.dialogue || []).length;
@@ -674,13 +693,14 @@
       nWords + " nieuwe woorden · " + nDia + " dialoogregels · "
       + nGaps + " invulgaten · " + nVragen + " spreekvragen"));
     if (nWords) {
-      wrap.appendChild(el("p", "subhint", "Nieuwe woorden (de kaart van dit hoofdstuk)"));
+      var fold = foldaway("Nieuwe woorden tonen (" + nWords + ")");
       lesson.new_words.forEach(function (w) {
         var row = el("div", "line");
         row.appendChild(el("span", "nl", w.nl));
         if (w.en) row.appendChild(el("span", "en", w.en));
-        wrap.appendChild(row);
+        fold.body.appendChild(row);
       });
+      wrap.appendChild(fold.box);
     }
     if (nDia) {
       wrap.appendChild(el("p", "subhint", "Het gesprek in één oogopslag (skim)"));
@@ -714,11 +734,9 @@
     var segB = lesson.segments.filter(function (s) { return s.block === "B"; });
     var segC = lesson.segments.filter(function (s) { return s.block === "C"; });
     if (step === 1) {
-      var seen = {};
-      lesson.segments.forEach(function (seg) {
-        if (seg.block === "B") return;
-        if (seg.block === "A" && seen[seg.nl]) return;
-        seen[seg.nl] = true;
+      // The dialogue (block C) is the learning object and comes first; the vocab
+      // word/example segments (block A) are folded away below as reference.
+      var segRow = function (seg) {
         var row = el("div", "line");
         var play = el("button", "play", "🔊");
         play.addEventListener("click", function () { playRange(seg.start_ms, seg.end_ms); });
@@ -730,8 +748,18 @@
           en.addEventListener("click", function () { en.classList.remove("veiled"); });
           row.appendChild(en);
         }
-        wrap.appendChild(row);
+        return row;
+      };
+      segC.forEach(function (seg) { wrap.appendChild(segRow(seg)); });
+      var segA = [], seen = {};
+      lesson.segments.forEach(function (seg) {
+        if (seg.block === "A" && !seen[seg.nl]) { seen[seg.nl] = true; segA.push(seg); }
       });
+      if (segA.length) {
+        var fold = foldaway("Nieuwe woorden & voorbeeldzinnen (" + segA.length + ")");
+        segA.forEach(function (seg) { fold.body.appendChild(segRow(seg)); });
+        wrap.appendChild(fold.box);
+      }
     } else if (step === 2 && segC.length) {
       var lines = [];
       var transcript = el("div", "transcript");
