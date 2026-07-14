@@ -234,11 +234,18 @@
   var GH = { owner: "Yusuprozimemet", repo: "LearnX-Delftse-state", path: "trainer/",
              key: "delftse-gh-token" };
   GH.token = localStorage.getItem(GH.key) || "";
+  // Local preview: served from localhost (e.g. `python -m http.server` in trainer/)
+  // the page reads the files next to it instead of the private state repo — no token.
+  // Lets you test a freshly converted chapter before pushing it.
+  var LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
   function ghFetch(p, accept) {
-    var url = "https://api.github.com/repos/" + GH.owner + "/" + GH.repo +
-              "/contents/" + GH.path + p + "?ref=main&t=" + Date.now();
+    var url = LOCAL
+        ? p + "?t=" + Date.now()
+        : "https://api.github.com/repos/" + GH.owner + "/" + GH.repo +
+          "/contents/" + GH.path + p + "?ref=main&t=" + Date.now();
     return fetch(url, { cache: "no-store",
-        headers: { "Accept": accept, "Authorization": "Bearer " + GH.token } })
+        headers: LOCAL ? { "Accept": accept }
+                       : { "Accept": accept, "Authorization": "Bearer " + GH.token } })
       .then(function (r) {
         if (r.status === 401 || r.status === 403) { var e = new Error("auth"); e.auth = true; throw e; }
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -272,6 +279,9 @@
     return n;
   }
   function norm(s) { return s.trim().toLowerCase().replace(/\s+/g, " "); }
+  // Chapter number as an id fragment: 2 digits minimum ("01".."43"), but YouTube
+  // chapters live at 101+ and must keep all their digits (no slice(-2) collisions).
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
   // URL-safe base64 of a UTF-8 string (Telegram deep-link payloads allow [A-Za-z0-9_-]).
   function b64url(s) {
     return btoa(unescape(encodeURIComponent(s)))
@@ -376,7 +386,7 @@
     // dt_<NN>_<vocabMarks>_<R>-<W>-<B>_<wrongWordsB64> — keep the 64-char deep-link
     // budget: vocab marks drive SR, the tally feeds the Telegram summary, and we pack
     // as many wrong words as fit (the sync shows "+N more" for the remainder).
-    var head = "dt_" + ("0" + reportLesson.chapter).slice(-2) + "_" + wordMarks(reportLesson) +
+    var head = "dt_" + pad2(reportLesson.chapter) + "_" + wordMarks(reportLesson) +
                "_" + t.R + "-" + t.W + "-" + t.B;
     var budget = 64 - head.length - 1, packed = [];
     for (var i = 0; i < t.wrong.length; i++) {
@@ -1074,7 +1084,7 @@
     var all = loadResults();
     if (!chapters.length) { wrap.appendChild(el("p", "muted", "Geen hoofdstukken gevonden.")); return wrap; }
     chapters.forEach(function (c) {
-      var id = "book1-" + ("0" + c.chapter).slice(-2);
+      var id = "book1-" + pad2(c.chapter);
       var row = el("div", "les-row");
       if (lesson && id === lesson.id) row.classList.add("open");
       if (!lesson || id !== lesson.id) {
@@ -1200,7 +1210,7 @@
   function render(lesson) {
     audio.pause(); rAudio.pause(); rStop = null; stopAt = null; onTick = null; onStop = null;
     if (window.speechSynthesis) window.speechSynthesis.cancel();
-    lesson.id = lesson.date || ("book1-" + ("0" + lesson.chapter).slice(-2));
+    lesson.id = lesson.date || ("book1-" + pad2(lesson.chapter));
     currentLesson = lesson;
     reportLesson = lesson;
     document.getElementById("meta").textContent =
@@ -1268,7 +1278,7 @@
       });
   }
 
-  if (GH.token) boot(); else showLogin();
+  if (LOCAL || GH.token) boot(); else showLogin();
 })();
 </script>
 </body></html>

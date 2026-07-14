@@ -223,7 +223,9 @@ scripts/*_report.json
 
 # Copyrighted content + personal state — these live ONLY in the private
 # LearnX-Delftse-state repo, never in this (to-be-public) code repo.
+# (youtube/ holds video-transcript chapters — same rule as book1/.)
 /book1/
+/youtube/
 /trainer/index.json
 /trainer/delftse-*.json
 /trainer/*.mp3

@@ -23,10 +23,11 @@ import config
 
 _GET = "https://api.telegram.org/bot{token}/getUpdates"
 _SEND = "https://api.telegram.org/bot{token}/sendMessage"
-_RECALL = re.compile(r"^/start\s+db_(\d{2})_([01xb]+)$")
+# Chapter is 2 digits for the book (01..43) and 3 for YouTube lessons (101+).
+_RECALL = re.compile(r"^/start\s+db_(\d{2,3})_([01xb]+)$")
 _REVIEW = re.compile(r"^/start\s+dv_(\d{6})_([01xb]+)$")
 # Full-test report: dt_<chap>_<vocabMarks>_<R>-<W>-<B>_<wrongWordsB64> (b64 optional).
-_REPORT = re.compile(r"^/start\s+dt_(\d{2})_([01xb]+)_(\d+)-(\d+)-(\d+)(?:_([A-Za-z0-9_-]+))?$")
+_REPORT = re.compile(r"^/start\s+dt_(\d{2,3})_([01xb]+)_(\d+)-(\d+)-(\d+)(?:_([A-Za-z0-9_-]+))?$")
 
 
 def _b64url_decode(s: str) -> list[str]:

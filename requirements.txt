@@ -4,3 +4,4 @@ pydub>=0.25          # concatenate segments -> one lesson mp3
 openai>=1.0          # OpenAI-compatible client for NVIDIA NIM / Groq
 python-dotenv>=1.0   # load .env locally
 requests>=2.31       # Telegram getUpdates (sync runner)
+yt-dlp>=2024.10      # YouTube subtitles (scripts/youtube.py immersion pipeline)

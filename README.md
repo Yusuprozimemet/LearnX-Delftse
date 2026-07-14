@@ -89,6 +89,36 @@ and the gap widens (2 days, then longer). Miss it and it comes back sooner. So
 Open the trainer, study a lesson, tap **save**. That’s it — a sync runs once a
 day and keeps your review list and scorecard up to date automatically.
 
+## Make a lesson from a YouTube video 🎬
+
+Any **Dutch-language** YouTube video can become a full chapter — immersion
+material: you learn how Dutch speakers actually say things.
+
+```sh
+python scripts/youtube.py "https://www.youtube.com/watch?v=..."
+```
+
+What it does:
+
+1. Downloads the video’s Dutch subtitles (uploader-provided when available,
+   YouTube’s auto-generated ones otherwise). Videos without any Dutch track are
+   rejected — this pipeline is immersion-only, so the text must be real Dutch.
+2. Cleans the transcript and has the LLM shape it into a book-style chapter:
+   ~20 rows of the speaker’s **own words** (punctuation restored, *not*
+   simplified), an English gloss per row, and 6–8 comprehension questions.
+   The chapter markdown lands in `youtube/` — skim it (ASR subtitles can carry
+   the odd misheard word), edit if needed, and re-run
+   `python scripts/convert.py youtube/<file>.md` after edits.
+3. Runs the normal converter: vocab extraction, two-voice edge-tts audio with
+   the Delft repeat-pauses, gatentekst, luistertoets, dictee, vragen — and
+   registers it in `index.json`.
+
+YouTube chapters are numbered **101 and up**, so they never collide with the
+book (1–43). They behave exactly like book chapters everywhere: scores, the
+Telegram report, and spaced repetition all just work.
+
+Needs an LLM key in `.env` (see below) and `yt-dlp` (in `requirements.txt`).
+
 ## Setup (only if you’re running your own copy)
 
 **You need two repositories:**
@@ -123,3 +153,12 @@ cp .env.example .env               # fill in your keys (see .env.example)
 Generating new lessons needs an LLM key; running the trainer and the sync only
 needs the Telegram keys above. The trainer itself is just a static page — the
 rest is internal plumbing.
+
+**Preview a lesson locally** (before pushing it to the private repo): serve the
+`trainer/` folder and open it — on `localhost` the page reads the files next to
+it and skips the token login.
+
+```sh
+cd trainer
+python -m http.server 8321     # then open http://localhost:8321/delftse.html
+```
