@@ -16,10 +16,16 @@ repetition). Your progress is private and synced to you on Telegram.
 ## How to use it
 
 1. **Open the trainer** and log in (see [Logging in](#logging-in) below).
-2. **Pick a lesson** and work through the steps: listen to the audio, repeat,
-   then do the exercises — the **gatentekst** (fill-in), the **luistertoets**
-   (listening), and the **dictee** (type what you hear).
+2. **Pick a lesson** and work through the steps. Each chapter opens on the
+   **overzicht** (🗺 step 0): a one-minute skim of the word list and the whole
+   dialogue, so you see the shape of the chapter before the detail work. Then
+   listen to the audio, repeat, and do the exercises — the **gatentekst**
+   (fill-in), the **luistertoets** (listening), and the **dictee** (type what
+   you hear).
 3. **Score each exercise.** You'll see how many you got right out of the total.
+   Then consolidate in the **✏️ schrijven** tab: write your own sentence with
+   each target word — the words you just missed are sorted to the top. Your
+   sentences are saved on the device, and you can hear them read back in Dutch.
 4. **Tap “✅ Resultaten opslaan”** (Save results). This sends your score to the
    Telegram bot in one tap — no typing, no account setup.
 5. **Get your summary on Telegram.** Once a day (or whenever the sync runs) you

@@ -9,6 +9,10 @@
          same ms-timestamped A/B/C blocks Radar's audio pipeline emits).
        * A new VRAGEN tab drives the chapter's spreken Q&A: read/hear the question,
          answer aloud, then reveal the model answer (browser TTS, nl-NL).
+       * OVERZICHT (LEREN step 0, the landing step) shows the chapter's whole shape
+         first — word list, dialogue skim, exercise counts — before any detail work.
+       * A SCHRIJVEN tab asks for a self-written sentence per target word (missed
+         words first); sentences persist in localStorage, model sentence on reveal.
        * No backend: no Telegram report, no herhaling-server, no progress token.
          Scores live in localStorage exactly as Radar's do.
      LEREN / TEST / LESSEN keep Radar's proven player + exercise logic verbatim. -->
@@ -189,6 +193,17 @@
                   color:var(--ink); padding:.35rem .8rem; }
   .vraag button:active { transform:translateY(2px); border-bottom-width:2px; }
   .vraag button.speak { color:#fff; background:var(--blue); border:0; border-bottom:4px solid var(--blue-edge); }
+  /* SCHRIJVEN: own-sentence cards reuse the .vraag frame + a textarea */
+  .vraag textarea { width:100%; font:inherit; font-weight:700; margin-top:.5rem;
+                    border:2px solid var(--border); border-radius:12px;
+                    padding:.45rem .6rem; resize:vertical; background:#fff; }
+  .vraag textarea:focus { outline:none; border-color:var(--blue); }
+  .vraag .q .en { color:var(--grey); font-style:italic; font-weight:600; font-size:.9rem; }
+  /* OVERZICHT: dialogue skim — deliberately small and dashed: skim, don't study */
+  .ovz-dia { background:var(--card); border:2px dashed var(--border); border-radius:16px;
+             padding:.8rem 1rem; font-size:.9rem; font-weight:600; }
+  .ovz-dia div { margin:.15rem 0; }
+  .ovz-dia .sp { color:var(--blue); font-weight:800; }
 </style></head><body>
 <header class="bar">
   <span class="owl">📖</span>
@@ -199,6 +214,7 @@
   <button data-tab="leren" class="active">🎧 leren</button>
   <button data-tab="test">✍️ test</button>
   <button data-tab="vragen">💬 vragen</button>
+  <button data-tab="schrijven">✏️ schrijven</button>
   <button data-tab="lessen">🏆 lessen</button>
   <button data-tab="herhaling" id="tab-herhaling" style="display:none">🔁 herhaling</button>
 </div>
@@ -632,6 +648,49 @@
     return box;
   }
 
+  // --- LEREN step 0: OVERZICHT — the whole shape before any detail ----------------
+  // Map-first: skim the word list and the dialogue once, see what's coming, then
+  // start step 1. Details land better when there's already a skeleton to hang on.
+  function overzichtView(lesson) {
+    var wrap = el("div");
+    wrap.appendChild(el("p", "hint",
+      "Eerst het geheel, dan de details: bekijk de woorden en het gesprek in vogelvlucht — niet studeren, alleen de vorm zien. "
+      + "(See the whole shape first — skim, don't study. Then start step 1.)"));
+    var nWords = (lesson.new_words || []).length;
+    var nDia = (lesson.dialogue || []).length;
+    var nGaps = ((lesson.cloze || {}).answers || []).length;
+    var nVragen = (lesson.vragen || []).length;
+    wrap.appendChild(el("p", "subhint",
+      nWords + " nieuwe woorden · " + nDia + " dialoogregels · "
+      + nGaps + " invulgaten · " + nVragen + " spreekvragen"));
+    if (nWords) {
+      wrap.appendChild(el("p", "subhint", "Nieuwe woorden (de kaart van dit hoofdstuk)"));
+      lesson.new_words.forEach(function (w) {
+        var row = el("div", "line");
+        row.appendChild(el("span", "nl", w.nl));
+        if (w.en) row.appendChild(el("span", "en", w.en));
+        wrap.appendChild(row);
+      });
+    }
+    if (nDia) {
+      wrap.appendChild(el("p", "subhint", "Het gesprek in één oogopslag (skim)"));
+      var dia = el("div", "ovz-dia");
+      lesson.dialogue.forEach(function (d) {
+        var row = el("div");
+        if (d.speaker) row.appendChild(el("span", "sp", d.speaker + ": "));
+        row.appendChild(document.createTextNode(d.nl));
+        dia.appendChild(row);
+      });
+      wrap.appendChild(dia);
+    }
+    var bar = el("p");
+    var go = el("button", "score", "→ Start stap 1");
+    go.addEventListener("click", function () { state.step = 1; draw(); });
+    bar.appendChild(go);
+    wrap.appendChild(bar);
+    return wrap;
+  }
+
   // --- LEREN steps 1-4 (Delft input phases) --------------------------------------
   var HINTS = {
     1: "Luister per zin. Tik op de vertaling als je die nodig hebt. (Listen per sentence; tap to reveal the translation.)",
@@ -944,6 +1003,65 @@
     return wrap;
   }
 
+  // --- SCHRIJVEN: produce your own sentence per target word -----------------------
+  // Output consolidates: reproduction (dictee) isn't production. Missed words sort
+  // first — they're exactly the ones to force into a sentence of your own. The
+  // sentences persist per device so earlier attempts stay readable.
+  var SSTORE = "learnx-delftse-schrijven";
+  function loadOwnSentences(id) {
+    try { return (JSON.parse(localStorage.getItem(SSTORE)) || {})[id] || {}; } catch (e) { return {}; }
+  }
+  function saveOwnSentence(id, wid, text) {
+    var all;
+    try { all = JSON.parse(localStorage.getItem(SSTORE)) || {}; } catch (e) { all = {}; }
+    all[id] = all[id] || {}; all[id][wid] = text;
+    localStorage.setItem(SSTORE, JSON.stringify(all));
+  }
+  function schrijvenView(lesson) {
+    var wrap = el("div");
+    var words = lesson.new_words || [];
+    if (!words.length) { wrap.appendChild(el("p", "muted", "Geen woorden voor dit hoofdstuk.")); return wrap; }
+    wrap.appendChild(el("p", "hint",
+      "Maak van elk woord je eigen zin — typ hem en zeg hem hardop. Woorden die je fout had staan bovenaan (❌). "
+      + "(Write your own sentence with each word; the ones you missed come first.)"));
+    var wrongSet = {};
+    testTally(lesson).wrong.forEach(function (a) { wrongSet[norm(a)] = true; });
+    function missed(w) { return !!(wrongSet[norm(w.nl)] || wrongSet[norm(w.id)]); }
+    var ordered = words.filter(missed).concat(words.filter(function (w) { return !missed(w); }));
+    var sentById = {};
+    (lesson.sentences || []).forEach(function (s) { if (s.id && !sentById[s.id]) sentById[s.id] = s; });
+    var saved = loadOwnSentences(lesson.id);
+    ordered.forEach(function (w) {
+      var card = el("div", "vraag");
+      var q = el("div", "q", (missed(w) ? "❌ " : "") + w.nl);
+      if (w.en) q.appendChild(el("span", "en", " — " + w.en));
+      card.appendChild(q);
+      var ta = el("textarea");
+      ta.rows = 2; ta.autocapitalize = "off"; ta.spellcheck = false;
+      ta.placeholder = "Schrijf hier je eigen zin met „" + w.nl + "”…";
+      ta.value = saved[w.id] || "";
+      ta.addEventListener("input", function () { saveOwnSentence(lesson.id, w.id, ta.value); });
+      card.appendChild(ta);
+      var ex = sentById[w.id];
+      var ans = el("div", "a", ex ? "Voorbeeld: " + ex.nl + (ex.en ? " — " + ex.en : "")
+                                  : "Geen voorbeeldzin voor dit woord.");
+      var row = el("div", "row");
+      var hear = el("button", "speak", "🔊 woord");
+      hear.addEventListener("click", function () { speak(w.nl); });
+      var mine = el("button", null, "🔊 mijn zin");
+      mine.addEventListener("click", function () { if (norm(ta.value)) speak(ta.value); });
+      var reveal = el("button", null, "👁 voorbeeld");
+      reveal.addEventListener("click", function () {
+        card.classList.toggle("open");
+        reveal.textContent = card.classList.contains("open") ? "🙈 verberg" : "👁 voorbeeld";
+      });
+      row.appendChild(hear); row.appendChild(mine); row.appendChild(reveal);
+      card.appendChild(row); card.appendChild(ans);
+      wrap.appendChild(card);
+    });
+    return wrap;
+  }
+
   // --- LESSEN: chapter list + scores (the picker also lives in the header) --------
   function lessenView(lesson) {
     var wrap = el("div");
@@ -996,7 +1114,7 @@
   // --- page assembly --------------------------------------------------------------
   var chapters = [];        // index.json — [{chapter, title, json, audio}]
   var currentLesson = null;
-  var state = { tab: "leren", step: 1, sub: "gatentekst" };
+  var state = { tab: "leren", step: 0, sub: "gatentekst" };
 
   function loadAudio(lesson) {
     ghBlob("delftse-" + lesson.chapter + ".mp3")
@@ -1021,15 +1139,21 @@
     app.textContent = "";
     var pills = el("div", "pills");
     if (state.tab === "leren") {
-      [1, 2, 3, 4, 5].forEach(function (s) {
-        var b = el("button", s === state.step ? "active" : "", String(s));
+      [0, 1, 2, 3, 4, 5].forEach(function (s) {
+        var b = el("button", s === state.step ? "active" : "", s === 0 ? "🗺" : String(s));
+        if (s === 0) b.title = "Overzicht — eerst het geheel";
         b.addEventListener("click", function () { state.step = s; draw(); });
         pills.appendChild(b);
       });
       app.appendChild(pills);
-      app.appendChild(state.step === 5 ? dicteeView(lesson) : lerenView(lesson, state.step));
+      app.appendChild(state.step === 0 ? overzichtView(lesson)
+                    : state.step === 5 ? dicteeView(lesson)
+                    : lerenView(lesson, state.step));
     } else if (state.tab === "vragen") {
       app.appendChild(vragenView(lesson));
+      return;
+    } else if (state.tab === "schrijven") {
+      app.appendChild(schrijvenView(lesson));
       return;
     } else if (state.tab === "herhaling") {
       app.appendChild(herhalingView());
@@ -1084,7 +1208,7 @@
     loadAudio(lesson);
     syncPicker(lesson.chapter);
     document.getElementById("tabs").style.display = "";
-    setTab("leren"); state.step = 1; draw();
+    setTab("leren"); state.step = 0; draw();
   }
 
   // --- token login (the Path-2 gate) ----------------------------------------------
