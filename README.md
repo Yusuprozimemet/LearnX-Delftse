@@ -13,6 +13,10 @@ fill in → review. You study a lesson, test yourself, and the app remembers wha
 you got wrong so it can bring those words back at the right time (spaced
 repetition). Your progress is private and synced to you on Telegram.
 
+> **Scope, by design:** this is a *personal, single-user* tool — one learner, one
+> Telegram chat, one private data repo. The zero-backend architecture (static page
+> + GitHub Action + Telegram deep links) is chosen for exactly that scale.
+
 ## How to use it
 
 1. **Open the trainer** and log in (see [Logging in](#logging-in) below).
@@ -148,6 +152,7 @@ Needs an LLM key in `.env` (see below) and `yt-dlp` (in `requirements.txt`).
 ```sh
 pip install -r requirements.txt    # ffmpeg on PATH is needed only for building audio
 cp .env.example .env               # fill in your keys (see .env.example)
+python -m pytest tests/ -q        # unit tests (spaced-repetition scheduling)
 ```
 
 Generating new lessons needs an LLM key; running the trainer and the sync only
