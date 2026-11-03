@@ -11,8 +11,10 @@
 
 ## Contract impact
 
-<!-- PROJECT: what a contract is here, and who reviews a change to it.
-     Say "None" if not. -->
+<!-- A contract here is the recall format LearnX-Radar's DUTCH_RECALL_ENABLED path reads,
+     pinned by tests/contract/ (the 1/0/x marks, the recall log and word keys), and the
+     maintainer's gold grades in tests/gold/. A change to either is the maintainer's to
+     review, in a plan-change PR. Say "None" if not. -->
 
 None
 

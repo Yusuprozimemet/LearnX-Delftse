@@ -93,8 +93,8 @@ Ticked short-spec criteria join the behaviour index; a later day replaces one wi
     `Defect` (`found: close`). In jobmatch-microservices, four of the paper's six spec escapes
     were these. After the merge,
     the dashboard lists them under "Criteria first broken at the close".
-- **A contract test's timing is part of what it expects.** A test in <!-- PROJECT: the frozen
-  tests' path --> is frozen in its expected values and in when it expects them. One that asserted
+- **A contract test's timing is part of what it expects.** A test in `tests/contract/`
+  or `tests/gold/` is frozen in its expected values and in when it expects them. One that asserted
   an effect at once and now waits for it, or waits longer than it did, expects something else,
   even with every value unedited. In jobmatch-microservices, Day 25 did this to
   `AccountDeletionIT`: the saved jobs came to go by the `user.deleted` event,
@@ -103,7 +103,7 @@ Ticked short-spec criteria join the behaviour index; a later day replaces one wi
   approved, but read as values only, and no test asserted that count until #441 (paper, §4.1).
   So a new or longer wait, poll bound or timeout in a contract test is a departure: the
   spec-change PR names it before the work, with the bound and what the API shows until it
-  passes; the maintainer approves it; and a test outside <!-- PROJECT: the frozen tests' path -->
+  passes; the maintainer approves it; and a test outside `tests/contract/` and `tests/gold/`
   pins that public effect within the bound, as, in jobmatch-microservices,
   `SavedCountAfterDeletionIT` does. A wait raised to quiet a flaky test is
   the same change.
@@ -212,12 +212,22 @@ specs/
 
 | Days | Phase | Outcome | Status |
 |---|---|---|---|
-<!-- PROJECT: one row per phase: its days, its number and name, its outcome, and its status -->
+| 01–02 | 0, Pin today's behaviour | Today's parsers, scheduler and lesson JSON under test; Radar's recall format a frozen contract | not started |
+| 03–06 | 1, Typed production, graded | One grader, `trainer/grade.js`, matching the maintainer's frozen gold grades | not started |
+| 07–09 | 2, Voice | `nl-NL` speech recognition feeding the same grader; typing where it is absent | not started |
+| 10–13 | 3, Mastery per concept | A mastery and a due date per concept in the schedule, Radar's keys untouched | not started |
 
 ## Provisional specs
 
-<!-- PROJECT: which specs were written from plan.md before their phase, and when each is re-read against the code -->
+None yet. Each phase's specs are written from `plan.md` on its first day, after the
+plan-auditor has read the phase against the code. A spec written earlier than that is re-read
+by the spec-auditor on its own day, before its spec-change PR.
 
 ## Stopping points
 
-<!-- PROJECT: the days that end a phase, and what each leaves standing on its own -->
+- **Day 02** ends Phase 0: today's behaviour and Radar's format are held by tests, with nothing
+  else changed.
+- **Day 06** ends Phase 1, a stop: typed answers are graded, and the trainer is complete without
+  voice.
+- **Day 09** ends Phase 2: speaking is an alternative to typing, in browsers that support it.
+- **Day 13** ends Phase 3 and the plan, a stop: the schedule keeps a mastery per concept.

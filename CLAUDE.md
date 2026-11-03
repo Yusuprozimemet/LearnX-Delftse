@@ -60,8 +60,8 @@ maintainer, and nothing starts after a phase ends until they say so.
    `main`, run `python scripts/spec-drift.py` and report the next step it prints. The page on
    GitHub Pages is the only dashboard; nothing else is republished.
 6. **When a phase's last closing PR has merged,** after step 5, on fresh `main`: run the
-   plan-auditor on the phase that just ended and on the next (at <!-- PROJECT: the end of the last
-   phase -->, the three end-of-phase auditors too), report, and stop. They never run inside the
+   plan-auditor on the phase that just ended and on the next (at the end of Phase 3,
+   Day 13, the three end-of-phase auditors too), report, and stop. They never run inside the
    closing PR: they read what merged.
 
 Tracks may run in a different order from the spec's table when one depends on another; say so in
@@ -101,7 +101,7 @@ own specs: in this repository that session has read past its own errors more tha
 | every day, before the spec-change PR | spec-auditor | Is every claim and check in this day's spec true, and can each check fail? |
 | a phase's last closing PR has merged, on fresh `main` | plan-auditor | What did the phase change that the next one must know? |
 | a stopping point `plan.md` names, before going on | plan-auditor, on the whole plan | Is `plan.md` still the right plan, and what has piled up that no day owns? |
-| the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, on fresh `main` | security-ops-auditor, agentic-engineering-auditor, architecture-auditor | Can the workflow take more autonomy safely; what does it show about agents; do its gates hold? |
+| the closing PR of Phase 3 (Day 13, mastery per concept, which ends the plan) has merged, on fresh `main` | security-ops-auditor, agentic-engineering-auditor, architecture-auditor | Can the workflow take more autonomy safely; what does it show about agents; do its gates hold? |
 | every close, after the Notes are written | defect-rater, on `relabel.py`'s blind file | Does a reader who did not write the day tag its defects the same way? |
 | any time, by hand | either | "use the plan-auditor on Phase 3" |
 
@@ -109,7 +109,7 @@ Both check hand-offs: what earlier days' Notes and test comments defer to a late
 else carries them forward, and that is where most gaps have come from.
 
 The three end-of-phase auditors run once, on Opus, on fresh `main` after the closing PR of
-<!-- PROJECT: the last phase, and what ends it --> has merged, beside the plan-auditor on the last phase and on the whole plan. Each runs from a fresh context and reads none of
+Phase 3 (Day 13, mastery per concept, which ends the plan) has merged, beside the plan-auditor on the last phase and on the whole plan. Each runs from a fresh context and reads none of
 the others' reports: their disagreement is part of the result.
 
 "Read-only" is enforced as far as a hook can: `.claude/settings.json` runs
@@ -151,7 +151,7 @@ a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.
 
 ## Before pushing
 
-- Run the check-only style command `<!-- PROJECT: style check command, e.g. ruff check . && ruff format --check . -->`; it must fail on unformatted code and never rewrite files.
+- Run the check-only style command `ruff check delftse tests config.py && ruff format --check delftse tests config.py`; it must fail on unformatted code and never rewrite files. It covers the Python only; the page's JavaScript has no style check.
 - Run the tests as CI does: `python -m pytest -q -p no:cacheprovider tests` (`.github/workflows/tests.yml`). Nothing needs
   building first; the tests need only `pytest`, not `requirements.txt`'s TTS and LLM clients.
 - There is no report directory: read pytest's last line, "N passed", and check that N is the
@@ -173,9 +173,11 @@ a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.
 
 ## Stop and ask, do not patch
 
-- <!-- PROJECT: the contract tests that must never be edited (their path), timing included: a
-  new or longer wait, poll bound or timeout (`specs/README.md`); what may change around them -->
-  That is the signal the spec's premise is wrong.
+- A change seems to need an edit to `tests/contract/` (Radar's recall format: the `1`/`0`/`x`
+  marks, the recall log and word keys) or to a merged gold file in `tests/gold/` (the
+  maintainer's grades), expected values or timing (`specs/README.md`). The code under
+  `delftse/` and `trainer/` may change around them, and a new gold file may be added. That is
+  the signal the spec's premise is wrong.
 - A criterion cannot be met as written. Record the departure; do not deviate silently.
 
 ## Where things live

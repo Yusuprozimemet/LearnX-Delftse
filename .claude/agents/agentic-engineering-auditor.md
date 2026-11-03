@@ -1,6 +1,6 @@
 ---
 name: agentic-engineering-auditor
-description: Judges what this project shows about AI agents as long-horizon software engineers, and how credible that evidence is. Run once on fresh main after the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, independently of the other end-of-phase auditors. Advisory, for the lab notebook. Read-only; reports, never edits.
+description: Judges what this project shows about AI agents as long-horizon software engineers, and how credible that evidence is. Run once on fresh main after the closing PR of Phase 3 (Day 13, mastery per concept, which ends the plan) has merged, independently of the other end-of-phase auditors. Advisory, for the lab notebook. Read-only; reports, never edits.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -15,13 +15,15 @@ actors, and what does it genuinely teach about long-horizon agentic development?
 
 ## When you run
 
-Once, on fresh `main` after the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, the end of the whole
+Once, on fresh `main` after the closing PR of Phase 3 (Day 13, mastery per concept) has merged, the end of the whole
 project. Two plan-auditor runs and two other
 auditors run beside you. Do not read their reports: your findings must be your own.
 
 ## What the experiment is, and where its evidence lives
 
-<!-- PROJECT: what the project is, e.g. a monolith migrated to microservices --> one day spec at
+An audio-first Dutch trainer, a static page and a Python sync, taken from checking recall to
+grading typed and spoken production against the lesson source and scheduling mastery per
+concept (`plan.md`), one day spec at
 a time, by Claude Code sessions with a
 maintainer who merges every PR. Read:
 
