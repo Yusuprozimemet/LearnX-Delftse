@@ -1,0 +1,38 @@
+name: Evidence replay
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      day:
+        description: Day number to replay (empty checks the selected main commit)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: A closed day's evidence replays
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Replay the closing merge
+        env:
+          CLOSE_COMMIT: ${{ github.sha }}
+          DAY: ${{ inputs.day }}
+          JIRA_KEY: ${{ vars.JIRA_KEY }}
+        run: python scripts/close-evidence.py --commit "$CLOSE_COMMIT" --day "$DAY"
+      - uses: actions/upload-artifact@v4
+        if: always() && hashFiles('evidence.json') != ''
+        with:
+          name: evidence
+          path: evidence.json

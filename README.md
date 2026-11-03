@@ -167,3 +167,17 @@ it and skips the token login.
 cd trainer
 python -m http.server 8321     # then open http://localhost:8321/delftse.html
 ```
+## How this repository is developed
+
+From here on, Delftse changes one day spec at a time with the
+[agentic workflow kit](https://github.com/Yusuprozimemet/agentic-workflow-kit): `plan.md` holds
+the goal, `specs/` the days, and every change lands in a reviewed pull request whose tests were
+seen failing first. Start with [`CLAUDE.md`](CLAUDE.md); the kit's own guide is
+[`docs/kit.md`](docs/kit.md). Progress is on the
+[dashboard](https://yusuprozimemet.github.io/LearnX-Delftse/dashboard/).
+
+Run the tests: `pip install pytest`, then `python -m pytest -q tests`.
+
+### Findings
+
+None yet: each day's closing PR adds what it turned up.
