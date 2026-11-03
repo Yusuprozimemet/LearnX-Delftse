@@ -79,7 +79,7 @@ flowchart TD
 | "start Day N", any other day | spec-auditor | findings, then a spec-change PR |
 | "merged" | dashboard refresh, then the next track or the closing PR | a PR, then wait |
 | "merged" on a phase's last closing PR | dashboard refresh, then the plan-auditor, phase-end review, on fresh `main` | a report; nothing starts until the maintainer says so |
-| "merged" on the closing PR of <!-- PROJECT: the last phase, and what ends it --> | dashboard refresh, then the three end-of-phase auditors, independently, on fresh `main` | three reports for the maintainer; nothing is destroyed until they say so |
+| "merged" on the closing PR of Phase 3 (Day 13, mastery per concept, which ends the plan) | dashboard refresh, then the three end-of-phase auditors, independently, on fresh `main` | three reports for the maintainer; nothing is destroyed until they say so |
 | any time, by hand | either auditor | for example "use the plan-auditor on Phase 3" |
 
 ## Starting, for someone new

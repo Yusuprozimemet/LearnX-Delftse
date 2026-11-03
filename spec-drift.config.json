@@ -6,5 +6,5 @@
   "services": {},
   "infra_workflow": "",
   "areas": [],
-  "frozen": []
+  "frozen": ["^tests/contract/", "^tests/gold/"]
 }

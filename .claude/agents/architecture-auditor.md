@@ -1,6 +1,6 @@
 ---
 name: architecture-auditor
-description: Judges whether this project built a strong enough deterministic system (specs, contracts, gates, measurements) around probabilistic AI agents. Run once on fresh main after the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, independently of the other end-of-phase auditors. Advisory. Read-only; reports, never edits.
+description: Judges whether this project built a strong enough deterministic system (specs, contracts, gates, measurements) around probabilistic AI agents. Run once on fresh main after the closing PR of Phase 3 (Day 13, mastery per concept, which ends the plan) has merged, independently of the other end-of-phase auditors. Advisory. Read-only; reports, never edits.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -15,7 +15,7 @@ around a probabilistic AI agent?
 
 ## When you run
 
-Once, on fresh `main` after the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, the end of the whole
+Once, on fresh `main` after the closing PR of Phase 3 (Day 13, mastery per concept) has merged, the end of the whole
 project. Two plan-auditor runs and two other
 auditors run beside you. Do not read their reports: your findings must be your own.
 
@@ -25,15 +25,16 @@ auditors run beside you. Do not read their reports: your findings must be your o
   `specs/_template.md` (`new` and `hold` criteria, `broken:` lines, Notes), `.claude/agents/`,
   `docs/workflow.md`, `.github/pull_request_template.md`.
 - The gates as enforced: `.github/workflows/` (`pr-checks.yml`: the description and diff-size
-  checks; `spec-drift-tests.yml`; <!-- PROJECT: the project's own CI, e.g. jobmatch's: each
-  service's CI, `infra-ci.yaml` -->), branch protection on `main`
-  (`gh api repos/{owner}/{repo}/branches/main/protection`), <!-- PROJECT: the project's own gates,
-  e.g. jobmatch's: checkstyle, Flyway's rule that applied migrations never change,
-  `scripts/infra-checks.py`, `scripts/live-checks.py`, `scripts/teardown-check.sh` -->.
-- The boundaries as code: <!-- PROJECT: the frozen tests and the boundaries the code enforces,
-  e.g. jobmatch's: the Day 1–4 contract tests (`services/identity-service/src/test/.../contract/`),
-  identity's `RestClientRuleTest`, the per-module database roles and schemas, the gateway's
-  routes, the bus and its message contracts, the Terraform modules -->.
+  checks; `spec-drift-tests.yml`; `tests.yml`, the project's pytest run; `dashboard.yml`, which publishes
+  the trainer and the dashboard to Pages), branch protection on `main`
+  (`gh api repos/{owner}/{repo}/branches/main/protection`), the style check
+  (`STYLE_CHECK_COMMAND`, ruff on the Python only), and "Frozen files stay unedited" over
+  `tests/contract/` and `tests/gold/` (`spec-drift.config.json`).
+- The boundaries as code: the contract tests (`tests/contract/`) that pin LearnX-Radar's recall
+  format; the maintainer's gold grades (`tests/gold/`) and the one grader that must match them
+  (`trainer/grade.js`); the deep-link payload grammar in `delftse/telegram.py`; the line between
+  the page (grading, speech, in the browser) and the sync (`delftse/srs.py`, scheduling); and
+  `.gitignore`, which keeps the private lesson and progress data out of this repository.
 - The measurements: `scripts/spec-drift.py` (gap, name coverage, Jaccard, criteria states) and its
   tests, `scripts/token-usage.py`, the dashboard, the lab notebook's measurement table.
 - The record: spec Notes, `git log`, PRs (`gh pr list --state merged --limit 400`).

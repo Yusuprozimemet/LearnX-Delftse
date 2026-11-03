@@ -30,8 +30,9 @@ do not guess which one is right.
 
 ## Never
 
-- Edit anything in <!-- PROJECT: the frozen tests' path -->, or <!-- PROJECT: anything applied
-  that is never edited, e.g. migrations -->. If the work seems
+- Edit anything in `tests/contract/` or `tests/gold/`, or a payload prefix, mark or recall key
+  that LearnX-Radar's format owns (`dr_`/`rv_`/`lr_`; `1`/`0`/`x`; `date`, `reported`, `right`,
+  `wrong`). If the work seems
   to need it, stop and report: that is the signal the spec's premise is wrong.
 - Commit, push, open a pull request, or change branches.
 - Run `docker compose down -v` without `-p <your own project>`: it deletes the maintainer's
@@ -48,7 +49,7 @@ Files changed
 - <path>: <what changed, one line>
 
 Tests run
-- <command> → <tests run, failures, errors, from the reports> ; <!-- PROJECT: the extra check; with none, delete from the semicolon -->: <exit code>
+- <command> → <tests run, failures, errors, from the reports> ; ruff check delftse tests config.py && ruff format --check delftse tests config.py: <exit code>
 
 Departures from the brief: <each one and why, or none>
 Numbers: every count above (tests, lines, entries) read from the file or the run, not estimated
