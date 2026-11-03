@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python -c \"import os,subprocess,sys;d=os.environ.get('CLAUDE_PROJECT_DIR');sys.exit(subprocess.call([sys.executable,os.path.join(d,'scripts','auditor-guard.py')]+sys.argv[1:]) if d else 0)\" pre"}]},
+                   {"matcher": "Read", "hooks": [{"type": "command", "command": "python -c \"import os,subprocess,sys;d=os.environ.get('CLAUDE_PROJECT_DIR');sys.exit(subprocess.call([sys.executable,os.path.join(d,'scripts','read-guard.py')]) if d else 0)\""}]}],
+    "SubagentStop": [{"hooks": [{"type": "command", "command": "python -c \"import os,subprocess,sys;d=os.environ.get('CLAUDE_PROJECT_DIR');sys.exit(subprocess.call([sys.executable,os.path.join(d,'scripts','auditor-guard.py')]+sys.argv[1:]) if d else 0)\" stop"}]}],
+    "PostToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python -c \"import os,subprocess,sys;d=os.environ.get('CLAUDE_PROJECT_DIR');sys.exit(subprocess.call([sys.executable,os.path.join(d,'scripts','cap-output.py')]) if d else 0)\""}]}]
+  }
+}

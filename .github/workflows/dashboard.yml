@@ -1,0 +1,86 @@
+name: Dashboard
+
+# Rebuilds the project dashboard after every merge to main and publishes it
+# to GitHub Pages under dashboard/, beside the trainer, so anyone can see where
+# the project stands without an account. The page is docs/dashboard/; scripts/spec-drift.py --build fills in
+# the data from git history and the pull request list.
+#
+# Pull requests do not trigger it: the dashboard reports main, and running on
+# pull_request_target to show open PRs would run in the base repository's
+# context for any fork. It shows open PRs as of the last merge.
+
+on:
+  push:
+    branches: [main]
+  # The infra workflow finishes after the merge's own rebuild, so the page rebuilds again with its summary.
+  # With no workflow named "Infra checks" in the repository, this trigger never fires.
+  workflow_run:
+    workflows: ["Infra checks"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  pages: write
+  id-token: write
+
+# Queued, not cancelled: a merge that touches infra starts two runs a few minutes apart (push,
+# then the infra workflow's workflow_run), and cancelling the first showed a red X on every such merge.
+# Queued, the later one still publishes last, so the page keeps the newer infra summary.
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the page
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # every merge on main is a snapshot
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install numpy
+
+      # What earlier runs read from git, by commit SHA (scripts/spec-drift.py, CACHE_FILE): only the
+      # new merge is read again. A save needs a key no run has used, so each run saves its own and
+      # restores the latest; a change to the script starts the cache over by itself.
+      - uses: actions/cache@v4
+        with:
+          path: .spec-drift-cache.json
+          key: spec-drift-${{ github.run_id }}
+          restore-keys: spec-drift-
+
+      - name: Measure and build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site/dashboard
+          python scripts/spec-drift.py --build site/dashboard/index.html
+
+      # Pages also serves the trainer, which branch-based Pages used to publish from main's root:
+      # its tracked files go at the site's root, the dashboard under dashboard/.
+      - name: Add the trainer
+        run: git ls-files -z index.html trainer | xargs -0 cp --parents -t site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Publish to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

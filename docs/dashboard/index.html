@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spec Drift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="headline">Spec and code, merge by merge</h1>
+    <p class="lede">Treat <code>plan.md</code> and the day specs as a vector, and the codebase as a second vector in the same space. Across every merge to <code>main</code>, this page tracks how far the spec rotated away from the plan as written, how far apart spec and code sit, and which side did the moving.</p>
+    <p class="lede"><strong>This repository is an engineering experiment.</strong> Its metrics are experimental diagnostic signals, not optimization targets or standard measures of quality.</p>
+  </header>
+  <div class="demo-banner" id="demo-banner" role="note" hidden></div>
+
+  <section class="panel" id="where">
+    <div class="panel-head">
+      <h2>Where we are</h2>
+      <p>Refreshed after every merge from the repository itself: the day in progress, its tracks and criteria, what comes next, and the road ahead.</p>
+    </div>
+    <div class="now">
+      <div class="today" id="today"><p class="load-error">Loading the latest data…</p></div>
+      <div class="roadmap" id="roadmap"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="attention">
+    <div class="panel-head"><h2>Needs attention</h2><p>Items are listed in the order supplied. Select one to inspect its criterion or day.</p></div>
+    <div id="attention-list"></div>
+  </section>
+
+  <div class="stats" id="stats"></div>
+  <div class="finding caveats"><h3>What these figures cannot see</h3><ul id="caveats"></ul></div>
+
+  <div class="scrubber" role="group" aria-label="Choose a point in the history">
+    <button id="play" type="button" aria-label="Replay the history">▶ Replay</button>
+    <input id="pr-scrub" type="range" min="0" max="1" value="1" aria-label="Merge to inspect">
+    <div class="scrub-now" id="scrub-now" aria-live="polite"></div>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>The selected merge</h2>
+      <p>What the merge chosen above did to the spec and the code, over <span class="num vocab-n"></span> code names (the backticked identifiers the specs use).</p>
+    </div>
+    <div class="readout" id="readout"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Spec–code name gap, merge by merge</h2>
+      <p>The spec–code name gap is the angle between the whole spec and the code, over the code names the specs put in backticks, in degrees, not a percentage. The dashed line is what it would read with nothing to find, and the shading around it is the 95% band of 1,000 seeded draws: the gap to the same code counts shuffled across the names. A merge with no spec name in the code has no gap angle and is left off the line. The strip under the axis shows what kind of PR each merge was; below that, a tick where each calendar date begins, so a busy date takes more width. A day marked * ran out of numeric order.</p>
+      <p class="limit">Compared with seeded shuffles of name counts; this is not a correctness test.</p>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--gap)"></i>Name gap: spec vs code</span>
+      <span><i class="dash"></i>Name gap by chance, with its 95% band</span>
+      <span><i class="dot" style="background:var(--spec)"></i>Spec change</span>
+      <span><i class="dot" style="background:var(--code)"></i>Code track</span>
+      <span><i class="dot" style="background:var(--close)"></i>Close the day</span>
+      <span><i class="dot" style="background:var(--other)"></i>Other (docs, CI)</span>
+      <span id="ooo-key"><b style="color:var(--ooo)">D*</b>Run out of numeric order</span>
+    </div>
+    <div id="lines"></div>
+    <div class="panel-head" style="margin-top:6px">
+      <h2 style="font-size:17px">What each merge did to the gap</h2>
+      <p>The step each merge took on the gap above, in merge order, one dot per merge coloured by kind of pull request. Above zero, that merge moved the spec away from the code; below zero, closer. Hover a dot for the merge; the net beside the panel is the sum of its steps.</p>
+    </div>
+    <div id="deltas"></div>
+    <div class="panel-head" style="margin-top:6px">
+      <h2 style="font-size:17px">The sawtooth, up close</h2>
+      <p>The share of code names in the specs for days already reached that exist in the code. It dips when a day starts, because the spec names things not built yet, and climbs back as that day's tracks land.</p>
+    </div>
+    <div id="cover"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Service boundaries</h2>
+      <p>The gap reads names; this reads the tree. For the services under <code>services</code> in <code>spec-drift.config.json</code>, each with the packages it takes over: the share of their main source lines that sits in its own directory under <code>services/</code> rather than where it started. It reaches 100% when the last service has moved.</p>
+    </div>
+    <div id="moved"></div>
+    <div class="finding" id="placed" style="margin-top:14px"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Where the work went</h2>
+      <p>Every line changed in a merged pull request, sorted by what the file is: the spec, the context the agents work from, the production code, and the tests with the scripts and CI that check them. Sorted by path, not by purpose: the rules are under “How the vectors are built”. Breaks on purpose never merge and the auditors only report, so verification does more than its lines show.</p>
+    </div>
+    <div class="legend" id="work-legend"></div>
+    <div id="work-bar"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Tests per line of code, so far</h2>
+      <p>Test lines changed so far divided by production lines changed so far, at each merge. The line starts once production passes 1,000 lines, so tests written before any code do not read as a spike; above the dashed line, more test than code has been written.</p>
+    </div>
+    <div id="test-ratio"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Spec and code, each against its own total</h2>
+      <p>Lines changed so far in the specs (<code>plan.md</code> and <code>specs/</code>) and in everything else except Markdown, each as a share of its own total: code lines outnumber spec lines several times over, so on one scale the spec line would hug the axis. When the spec line rises ahead of the code line, the plan is being written before it is built.</p>
+    </div>
+    <div class="legend" id="churn-legend"></div>
+    <div id="churn"></div>
+    <div class="panel-head" style="margin-top:6px">
+      <h2 style="font-size:17px">Pull requests per day</h2>
+      <p>Each day's merged pull requests by kind, in run order, counted from the <code>day-NN/</code> branches; tooling and docs PRs belong to no day, so they are only in the bar above, which counts every merge. In the bar, Other is split by the part of the branch name before the slash. A tall bar is a day that took more tracks, or more spec changes, than it was written for: hover for the estimate.</p>
+    </div>
+    <div class="legend" id="pr-total-legend"></div>
+    <div id="pr-total"></div>
+    <div id="perday"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Verification the lines do not show</h2>
+      <p>A break on purpose never merges and a failed CI run leaves nothing in git, so neither is in “Where the work went”. Both are read from GitHub instead. First, each code PR's description: does it record a break on purpose in the one line the rules fix (<code>broken: &lt;what&gt; → &lt;what it reported&gt;</code>), say why there is none (<code>broken: none → &lt;why&gt;</code>), or say nothing? If the line was asked for only from a later PR, a PR before it described its breaks in free text and is not measured; the panel names that PR. Any silent PR is listed below.</p>
+    </div>
+    <div id="breaks"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Pushes CI failed</h2>
+      <p>Every commit CI ran on for a pull request that later merged, counted once however many workflows ran on it, and failed if any of them failed (a cancelled run is not a failure). Pushes to <code>main</code> are not counted: what failed there had already merged. Each pull request CI failed on at least once is listed below, with the workflows that failed.</p>
+    </div>
+    <p id="ci-legend"></p>
+    <div class="scroll-x"><table id="ci-fails"></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Where the corrections landed</h2>
+      <p>Lines edited in each spec file (rows) by each merge (columns). The stepped line marks the day being worked on. Cells <em>below</em> it are edits to days not reached yet: what was learned today, rewriting the path ahead.</p>
+    </div>
+    <div class="scroll-x" id="heat"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Does a second reader agree with the defect tags?</h2>
+      <p>At each close, <code>scripts/relabel.py</code> strips the <code>found:</code>, <code>cause:</code> and <code>made:</code> tags from the day's Defect lines, and the defect-rater agent, which wrote none of the day's work, tags the text again. This is how many of the day's tags it gave the same way, as the spec's Notes quote <code>relabel.py compare</code>. Where they agree the tags measure the defects; where they do not, the tags may only measure what the session that wrote them believed. A day whose Notes quote no counts from <code>relabel.py compare</code>, because it skipped the comparison or told it in prose, is not counted.</p>
+    </div>
+    <div class="scroll-x"><table id="relabel"></table></div>
+  </section>
+
+  <section class="panel" id="infra">
+    <div class="panel-head">
+      <h2>Infrastructure, as CI last checked it</h2>
+      <p>The infra workflow, <code>infra_workflow</code> in <code>spec-drift.config.json</code>, checks the infrastructure's criteria on the merges that touch it, and <code>scripts/infra-summary.py</code> writes its summary. This is its last run on main: the criteria, what it would create, and an estimate of what it would cost an hour to run. Nothing here reads a cloud account.</p>
+    </div>
+    <div id="infra-head"></div>
+    <div class="chips" id="infra-criteria"></div>
+    <div class="chips" id="infra-steps"></div>
+    <div class="scroll-x" id="infra-resources"></div>
+    <div class="scroll-x" id="infra-cost"></div>
+    <div class="chips" id="infra-runs"></div>
+  </section>
+
+  <section class="panel" id="deployment">
+    <div class="panel-head">
+      <h2>The deployment, as it was checked live</h2>
+      <p>Once the system is deployed, the project's live check checks it against the domain and commits <code>deployment.json</code>. Each check shows its result and when it ran.</p>
+    </div>
+    <div id="deployment-head"></div>
+    <div class="scroll-x" id="deployment-checks"></div>
+  </section>
+
+  <section class="panel" id="tokens">
+    <div class="panel-head">
+      <h2>Tokens spent</h2>
+      <p>Output tokens Claude Code wrote each day on this repository, stacked by model, subagents included. Counted from the session transcripts on the maintainer's machine by <code>scripts/token-usage.py</code>, which only records totals; sessions run elsewhere are not in it. The table splits the same replies by the day whose branch they ran on. Under each bar, and in the table, is the context per reply: how much of the conversation each reply re-read. It falls when sessions are kept short, and it drives most of the cost.</p>
+    </div>
+    <div class="legend" id="token-legend"></div>
+    <div id="token-bars"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Who spent them</h2>
+      <p>The same output tokens by agent: the main sessions, and each subagent by its type, from the <code>.meta.json</code> Claude Code writes beside a subagent's transcript. The auditors and the defect-rater check work they did not write; the implementer writes the track code from a brief. Hover a bar for the context it read.</p>
+    </div>
+    <p id="token-implementer"></p>
+    <div id="token-agents"></div>
+    <div class="scroll-x"><table id="token-days"></table></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Hooks at work</h2>
+      <p><code>cap-output.py</code> cuts long Bash output, and <code>read-guard.py</code> refuses whole Reads of files over 8,000 bytes. Each row is one date. A refused Read still counts as whole. Read sizes are the files' sizes now.</p>
+    </div>
+    <div class="scroll-x"><table id="token-hooks"></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Evidence behind the ticks</h2>
+      <p>For each finished day: of its ticked criteria, how many cite the PR they landed in, name a test, and record a break seen red in a <code>broken:</code> line. Each named test is looked up on <code>main</code>. CI runs every test that is there, so a criterion goes quiet only when its test leaves the tree or can be skipped (a test run on a system property runs when a workflow passes the property as true). A test that moved is followed under its new name, of the same stem or listed by the PR that moved it. A name counts only if it was in the tree when the day's last PR merged. Grey is retired: a later day's spec names the test and that day's PR removed it; orange is gone with no spec saying so. Days marked <em>pre-format</em> were written before the evidence format: nothing asked their ticks to record any of this, so a zero there is not measured, not missing. If the <code>broken:</code> line was asked for only from a later PR, “Seen red” is not measured for a day none of whose PRs reaches it.</p>
+    </div>
+    <div class="panel-head"><h2>Criteria</h2><p>Each row shows the criterion, day and tag, whether it cites a PR, its test was found, and it was seen red, and the replay statuses. – means not measured. Select a row for details.</p></div>
+    <div class="scroll-x"><table id="criteria-matrix"></table></div>
+    <div class="panel-head"><h2>Inspector</h2><p>Evidence and attention for the selected criterion or day.</p></div>
+    <div id="criterion-inspector" aria-live="polite"></div>
+    <div class="scroll-x"><table id="evidence"></table></div>
+    <div class="finding" id="evidence-gaps" style="margin-top:14px"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Evidence replayed</h2>
+      <p>What the last run of <code>scripts/evidence.py --json</code>, committed as <code>docs/dashboard/evidence-checks.json</code>, found when it replayed each finished day's evidence at its closing merge: the named tests looked up, the Verify commands run, the recorded breaks applied. The page build reads that report and runs nothing. “Seen red” above counts the <code>broken:</code> lines a day recorded; here a break counts as passed only if it reported what its line says. A share is passed over passed, failed and errored, with the not-applicable beside it; a day checked at another close, or on a spec or breaks file <code>main</code> has since changed, is stale, not a pass.</p>
+      <p class="limit">Evidence: checks the recorded evidence against the revisions shown; does not establish complete behavioral coverage or current correctness.</p>
+    </div>
+    <div id="evidence-checks"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Merge by merge</h2>
+      <p>The distinct tests the finished days name, looked up at every merge from the day each was ticked. Green is there and run by CI; orange can be skipped or has left the tree with no spec saying so; grey is retired. A green step is a day closing; a dip, or orange rising, is a check that has gone quiet.</p>
+    </div>
+    <div id="evidence-history"></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Removal checks</h2>
+      <p>The greps a finished day's criteria or Verify say must print nothing, run over the tree at every merge from the day's end, from the root or a directory under <code>verify_bases</code> in <code>spec-drift.config.json</code>, wherever their paths are. Paths follow the directories that moved since (its <code>moved</code>), because a grep of a path that is gone prints nothing too. CI runs none of them. A check is orange when it finds lines on <code>main</code>, listed under it; grey when it reads no files; green otherwise. Since is the merge where that state began.</p>
+    </div>
+    <div class="scroll-x"><table id="removals"></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Hand-offs to days not yet run</h2>
+      <p>What finished days leave for later: a Notes item that names a day not yet run, or a code comment that does ("Day 12 adds this"). Nothing else carries them forward. A Notes item with an ID (like <code>H12.1</code>) counts as picked up only when the receiving spec cites the ID; one without, when it names the day the item came from; a comment, when the spec names its file. Days in run order; a spec written in full should leave none open. Last: ID'd items no later day picks up, and tracks a PR announced that no branch ever named.</p>
+    </div>
+    <div class="hand-offs" id="hand-offs"></div>
+  </section>
+
+  <section class="panel">
+    <h2>What the vectors say</h2>
+    <div class="findings" id="findings"></div>
+    <details>
+      <summary>How the vectors are built</summary>
+      <div class="method" style="margin-top:10px">
+        <p><b>Snapshots.</b> The initial commit plus every first-parent merge on <code>main</code> (<span id="pr-range"></span>). Code PRs, spec-change PRs and close-the-day PRs are told apart by branch name and title.</p>
+        <p><b>The spec–code name gap</b> needs a space both sides share. It is built from the <span class="num vocab-n"></span> code-like names the specs put in backticks. The spec vector counts how often each name appears in the specs. The code vector counts how often it appears in the code, with Markdown, <code>data/</code>, screenshots and comment lines left out: a comment naming a thing is not the thing. Both are log-scaled and compared by angle. Each merge’s gap uses only the names the specs had used by that merge, so a name a later spec adds does not move an earlier point. Counts are never negative, so even unrelated vectors sit well under 90°: the same code counts shuffled across the names would read <span class="num" id="gap-chance"></span> today (the dashed line and its band). With no spec name in the code there is no direction to compare, so no angle, rather than 90°. The other direction is counted apart: names the specs once used and have dropped, that the code still has. The gap is worth reading only as its distance below that line; the share of reached names found in the code (“The sawtooth, up close”) is the plainer measure.</p>
+        <p><b>Where the work went</b> counts <code>git diff --numstat</code> between one merge and the one before it, every file, so nothing merged is counted twice and nothing is left out. A moved file counts only the lines that changed in the move, under the path it moved to. Binary files, <code>package-lock.json</code>, <code>screenshots/</code> and <code>docs/dashboard/token-usage.json</code> are written by tools, not people, and are not counted. The first rule that matches a file’s path decides its box:</p>
+        <ol>
+          <li><b>Specs:</b> <code>plan.md</code> and <code>specs/</code>, the template and README there included.</li>
+          <li><b>Context:</b> any other <code>*.md</code> (<code>CLAUDE.md</code>, READMEs, the PR template), <code>.claude/</code> (the agents and settings), and <code>docs/</code> apart from <code>docs/dashboard/</code>.</li>
+          <li><b>Tests:</b> a path through a <code>test/</code> or <code>tests/</code> folder (<code>src/test/</code>, the harness and its <code>support/</code> included), or a file named <code>*Test.java</code>, <code>*Tests.java</code>, <code>*IT.java</code>, <code>test_*.py</code>, <code>*_test.py</code>, <code>conftest.py</code>, <code>*.test.js</code> or <code>*.spec.ts</code> and their kin.</li>
+          <li><b>Scripts, CI, dashboard</b> (drawn with the tests, as verification): the rest of <code>scripts/</code>, <code>.github/</code> and <code>docs/dashboard/</code>.</li>
+          <li><b>Production code:</b> everything else: source, migrations, Dockerfiles, compose, <code>.env.example</code>, <code>observability/</code>, the frontend and <code>data/</code> pipelines.</li>
+        </ol>
+        <p>The rules sort by path, and a path does not always say what a change was for. A spec-change PR that fixes a test counts as tests; a test helper under <code>src/test/</code> counts as tests even when it is plumbing; a Markdown file inside a service counts as context; the dashboard’s own code counts as verification. The ratio of tests to code uses the <b>Tests</b> box alone, without the scripts.</p>
+        <p><b>Refresh.</b> <code>python scripts/spec-drift.py --build</code> in the repository writes this page with its data. It is rerun after every merge, before the next step starts.</p>
+        <p><b>Limits.</b> Names in a spec that should <em>disappear</em> (like a table leaving the module that owned it) still count as shared vocabulary. Comments are recognised by line (<code>//</code>, <code>/*</code>, <code>*</code>, <code>--</code>, <code>#</code>, <code>&lt;!--</code>), not parsed, so a marker inside a string can hide the code after it on that line. The gap measures shared language, not correctness; correctness lives in the acceptance criteria and the tests.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Every merge as a table</summary>
+      <div class="scroll-x"><table id="tbl"></table></div>
+    </details>
+  </section>
+
+  <section class="panel" id="conclusion">
+    <div class="panel-head">
+      <div class="eyebrow" id="conclusion-eyebrow">Conclusion</div>
+      <h2>What the repository says so far</h2>
+      <p>Nothing in this panel is typed into the page. The read is the latest one the lab notebook records at the end of a phase, the table is the notebook's own measurements, and the rest is counted from git on every refresh.</p>
+    </div>
+    <div class="concl">
+      <div class="read" id="read"></div>
+      <div class="facts" id="facts"></div>
+    </div>
+    <div class="finding">
+      <h3>What is being measured</h3>
+      <div style="overflow-x:auto"><table id="measured"></table></div>
+    </div>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script src="dashboard.js"></script>
+<script>
+window.SPEC_DRIFT = null;
+start();
+</script>
+</body>
+</html>

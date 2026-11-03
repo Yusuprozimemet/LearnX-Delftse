@@ -1,0 +1,110 @@
+name: Dashboard metric tests
+
+# The dashboard's drift and gap are only worth reading if they move when they
+# should. scripts/test_spec_drift.py builds small repositories and checks that
+# they do. The tests job runs every scripts/test_*.py, that one and the tests of each
+# tool beside it (token counts, frozen files, breaks on purpose, the blind relabel, evidence,
+# seen-red and track-red whatever TRACK_RED_RUNNER is, the auditors' hook, ...), on every pull
+# request that touches a script or a file they read. A new test file runs without an edit here.
+# The token counts also run on Windows, where a transcript's path can pass 260 characters.
+
+on:
+  # Every pull request, so the gate below always reports: a required check that never starts
+  # blocks the merge. The changes job decides whether the real jobs have anything to do.
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      # A pull request's checkout is its merge commit, whose first parent is the base.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # The files the tests read: a pull request runs them only when it touches one of these.
+      - name: Compare with the base
+        id: diff
+        env:
+          PATHS: '^(scripts/[^/]+\.py$|\.claude/agents/.*\.md$|\.claude/settings\.json$|spec-drift\.config\.json$|docs/dashboard/(dashboard\.js|index\.html|dashboard\.css)$|kit/(compare-page\.py|page/.*)$|\.github/workflows/(spec-drift-tests|pr-checks)\.yml$)'
+        run: |
+          files=$(git diff --name-only HEAD^1 HEAD)
+          if grep -qE "$PATHS" <<< "$files"; then run=true; else run=false; fi
+          echo "run=$run" | tee -a "$GITHUB_OUTPUT"
+
+  test:
+    name: Drift and gap move when they should
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # numpy for the dashboard's tests, PyYAML for service-wiring.py's.
+      - run: pip install numpy pyyaml
+      # Each file in its own log group; every one runs, and the job fails if any did.
+      - name: Every scripts/test_*.py
+        run: |
+          failed=""
+          for t in scripts/test_*.py; do
+            echo "::group::$t"
+            python "$t" || failed="$failed $t"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then echo "failed:$failed"; exit 1; fi
+
+  # The long-path regression: Windows refuses a path past 260 characters that does not start
+  # with \\?\, and glob skips such a folder without a word. On Linux the test passes either way.
+  token-windows:
+    name: Token counts on Windows
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/test_token_usage.py
+
+  # What a copy of the kit starts with: kit/starter-check.py builds the pull request without kit/
+  # and checks it. On every pull request, since any file can name a source project. In the gate's
+  # needs: in a copy without kit/ its step is skipped and the job passes.
+  starter:
+    name: The starter names no project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy
+      - name: Build the copy and check it
+        if: hashFiles('kit/starter-check.py') != ''  # a project started from the kit has deleted kit/
+        run: python kit/starter-check.py
+
+  # The required check, named per workflow so they do not share one name. It runs even when a job
+  # before it failed or was skipped, since a skipped required check counts as passed: skipped jobs
+  # pass here, failed or cancelled ones do not.
+  gate:
+    name: Dashboard metric tests gate
+    if: always()
+    needs: [changes, test, token-windows, starter]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job passed or had nothing to do
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
+          done
